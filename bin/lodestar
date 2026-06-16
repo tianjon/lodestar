@@ -98,6 +98,6 @@ case "${1:-}" in
   init)    shift; cmd_init "$@" ;;
   status)  shift; cmd_status "$@" ;;
   install) shift; cmd_install "$@" ;;
-  -h|--help|"") grep '^#' "$0" | sed 's/^# \{0,1\}//' ;;
+  -h|--help|"") grep '^#' "$0" | grep -v '^#!' | sed 's/^# \{0,1\}//' ;;
   *) echo "unknown command: $1" >&2; echo "try: lodestar --help" >&2; exit 2 ;;
 esac

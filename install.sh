@@ -28,7 +28,7 @@ for arg in "$@"; do
     --claude) DO_CLAUDE=1 ;;
     --codex) DO_CODEX=1 ;;
     --uninstall) UNINSTALL=1 ;;
-    -h|--help) grep '^#' "$0" | sed 's/^# \{0,1\}//'; exit 0 ;;
+    -h|--help) grep '^#' "$0" | grep -v '^#!' | sed 's/^# \{0,1\}//'; exit 0 ;;
     *) echo "unknown arg: $arg" >&2; exit 2 ;;
   esac
 done
