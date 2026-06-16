@@ -1,0 +1,103 @@
+#!/usr/bin/env bash
+# lodestar — bootstrap and inspect the Lodestar memory system in a project.
+#
+# Commands:
+#   lodestar init [dir]      Create .memory/ (from templates) and wire CLAUDE.md + AGENTS.md.
+#   lodestar status [dir]    Show memory file sizes vs budgets and the current ANCHOR goal.
+#   lodestar install [...]   Install the skill to Claude Code / Codex (delegates to install.sh).
+#
+# `dir` defaults to the current directory. init is idempotent: it never overwrites an existing
+# .memory/ file and inserts the project pointer only once (guarded by LODESTAR markers).
+
+set -euo pipefail
+
+REPO_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+SKILL_DIR="$REPO_DIR/skills/lodestar"
+TPL_DIR="$SKILL_DIR/references/templates"
+POINTER_FILE="$SKILL_DIR/references/project-pointer.md"
+
+WORKING_BUDGET=65536
+CONSOLIDATED_BUDGET=131072
+
+extract_pointer() {
+  # Pull the block between the LODESTAR markers out of project-pointer.md.
+  awk '/<!-- LODESTAR:START -->/{f=1} f{print} /<!-- LODESTAR:END -->/{f=0}' "$POINTER_FILE"
+}
+
+cmd_init() {
+  local dir="${1:-.}"
+  dir="$(cd "$dir" && pwd)"
+  local project; project="$(basename "$dir")"
+  local mem="$dir/.memory"
+
+  mkdir -p "$mem/archive"
+
+  for f in working consolidated; do
+    local target="$mem/$f.md"
+    if [ -e "$target" ]; then
+      echo "  · kept existing $target"
+    else
+      sed "s/<PROJECT>/$project/g" "$TPL_DIR/$f.md" > "$target"
+      echo "  ✓ created $target"
+    fi
+  done
+
+  # Wire the project pointer into CLAUDE.md and AGENTS.md (idempotent).
+  local block; block="$(extract_pointer)"
+  for doc in CLAUDE.md AGENTS.md; do
+    local path="$dir/$doc"
+    if [ -f "$path" ] && grep -q 'LODESTAR:START' "$path"; then
+      echo "  · $doc already wired"
+      continue
+    fi
+    {
+      [ -f "$path" ] && printf '\n'
+      printf '%s\n' "$block"
+    } >> "$path"
+    echo "  ✓ wired Lodestar pointer into $doc"
+  done
+
+  echo ""
+  echo "Lodestar initialized in $dir"
+  echo "Next: open .memory/working.md and fill the ⚓ ANCHOR Goal / Done-when / Boundaries."
+}
+
+filesize() { wc -c < "$1" 2>/dev/null | tr -d ' '; }
+
+cmd_status() {
+  local dir="${1:-.}"
+  dir="$(cd "$dir" && pwd)"
+  local mem="$dir/.memory"
+  if [ ! -d "$mem" ]; then
+    echo "no .memory/ in $dir — run: lodestar init \"$dir\""
+    exit 1
+  fi
+  echo "Lodestar status — $dir"
+  for pair in "working.md:$WORKING_BUDGET" "consolidated.md:$CONSOLIDATED_BUDGET"; do
+    local f="${pair%%:*}" budget="${pair##*:}"
+    local p="$mem/$f"
+    if [ -f "$p" ]; then
+      local n; n="$(filesize "$p")"
+      local pct=$(( n * 100 / budget ))
+      printf '  %-16s %8s / %-8s chars (%d%%)' "$f" "$n" "$budget" "$pct"
+      [ "$n" -gt "$budget" ] && printf '  ⚠ over budget — consolidate (Protocol 3)'
+      printf '\n'
+    else
+      printf '  %-16s missing\n' "$f"
+    fi
+  done
+  echo ""
+  echo "  ⚓ ANCHOR:"
+  awk '/## ⚓ ANCHOR/{f=1} f{print "    "$0} /^---$/{if(f)exit}' "$mem/working.md" 2>/dev/null \
+    | grep -E 'Goal|Done-when|Boundaries|Return-stack|Drift' || echo "    (no anchor block found)"
+}
+
+cmd_install() { exec "$REPO_DIR/install.sh" "$@"; }
+
+case "${1:-}" in
+  init)    shift; cmd_init "$@" ;;
+  status)  shift; cmd_status "$@" ;;
+  install) shift; cmd_install "$@" ;;
+  -h|--help|"") grep '^#' "$0" | sed 's/^# \{0,1\}//' ;;
+  *) echo "unknown command: $1" >&2; echo "try: lodestar --help" >&2; exit 2 ;;
+esac

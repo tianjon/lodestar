@@ -1,0 +1,25 @@
+{
+  "name": "lodestar",
+  "owner": {
+    "name": "Lodestar"
+  },
+  "metadata": {
+    "description": "Portable project-memory and anti-drift system — keep an AI anchored to the goal across long, wandering sessions, in any repository.",
+    "version": "1.0.0",
+    "runtimeRequirements": {
+      "note": "Zero runtime dependencies. Pure markdown + protocols executed by the agent. Works on Claude Code and Codex.",
+      "tools": []
+    }
+  },
+  "plugins": [
+    {
+      "name": "lodestar",
+      "description": "Project memory (Blueprint/Goal/State/GAP) with an always-on drift check that re-anchors the conversation on its active goal.",
+      "source": "./",
+      "strict": false,
+      "skills": [
+        "./skills/lodestar"
+      ]
+    }
+  ]
+}
