@@ -37,6 +37,14 @@ prefer Lodestar for goal alignment while still honoring generic environment conv
 Hooks can make Lodestar more reliable, but they are **opt-in**. A pointer block is advisory;
 Claude Code / Codex hooks provide lifecycle support when installed and trusted.
 
+## Where Lodestar Helps Most
+
+Project pilots (`evals/`) show the clearest value is narrow and specific: **persisting information
+that changes across a context reset** — a goal that shifted or a decision made mid-stream, which a
+fresh session would otherwise lose. Keeping the agent on an already-fixed goal, or honoring static
+constraints, is something a strong model does unaided — do not over-invest the anchor there. When the
+goal changes, **re-anchor** (rewrite `anchor.md`) so the *new* goal is what gets re-injected.
+
 ## Files
 
 ```

@@ -102,6 +102,35 @@ per iteration, runs `done_when.sh`, and appends one JSON line per run to `result
 path lets the harness itself be smoke-tested deterministically with no API spend. The LLM-judge
 pass (`judge.md`) is a second, also-headless step over the blinded transcripts.
 
+## Packaged tasks
+
+### `release-prep-loop`
+Long-horizon release prep with cold restarts and temptations; done-when is a code-state check.
+
+### `su-dongpo` — content-development long-horizon test
+Expand a Su Shi essay **chapter by chapter** toward a single measurable thesis ("Su Shi metabolized
+exile through transcendent equanimity"), with **content-triggered tangent questions** planted in the
+source. Each chapter is written in a fresh context (cold restart); the three arms differ only in what
+orientation is re-injected each chapter. The goal/thesis lives in `goal.md` (experimenter ground
+truth) and is deliberately **kept out of** `source/苏东坡.md`, so orientation can only come from each
+arm's apparatus — that is what the experiment isolates. Objective scoring (`done_when.sh`): chapter
+count, per-chapter length, thesis-tie ratio, required-coverage %, tangent avoidance.
+
+## How to repeat the experiment
+
+Two run paths, same fixtures and same scorer:
+
+1. **Portable / cross-harness (`run.sh`):** drives `(arm × seed × iteration)` headlessly via a
+   pluggable `--agent` (`claude -p …`, `codex exec …`, or `mock`). Self-testable with `--agent mock`.
+   `done_when.sh` is the canonical scorer; results land in `results.jsonl`.
+2. **In-session (Claude Code Workflow):** `lodestar-su-dongpo-eval` fans out A/B/C × chapters with
+   real subagents (one per chapter = one cold restart) and a blind judge per arm. The objective
+   scorer in the workflow mirrors `done_when.sh`; keep the two in sync.
+
+Either way: run `n ≥ 5` seeds, report mean ± stdev of the **B−A** and **B−C** deltas, and read the
+result against the pre-registered directions and falsification lines above. A green run that doesn't
+beat the placebo arm (C) is a real, publishable negative result — not a failure to report.
+
 ## File map
 ```
 evals/
@@ -110,8 +139,14 @@ evals/
 ├── judge.md                      # blinded LLM-judge prompt (subjective metrics)
 ├── run.sh                        # headless A/B/C × seed × iteration runner (mock-testable)
 └── tasks/
-    └── release-prep-loop/
-        ├── task.md               # instructions handed to the agent each iteration
-        ├── done_when.sh          # executable objective done-when + waste detector
-        └── temptations.txt       # scripted tangents, keyed by iteration
+    ├── release-prep-loop/
+    │   ├── task.md               # instructions handed to the agent each iteration
+    │   ├── done_when.sh          # executable objective done-when + waste detector
+    │   └── temptations.txt       # scripted tangents, keyed by iteration
+    └── su-dongpo/
+        ├── task.md               # chapter-by-chapter expansion instructions
+        ├── goal.md               # experimenter ground truth: thesis + measurable done-when
+        ├── questions.txt         # per-chapter content-triggered questions (goal + tangent)
+        ├── done_when.sh          # objective scorer (chapters/length/thesis-tie/coverage/tangent)
+        └── source/苏东坡.md       # pure material skeleton — NO thesis (orientation comes from the arm)
 ```

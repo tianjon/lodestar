@@ -193,6 +193,7 @@ test_user_docs_and_community_files_exist() {
 
   assert_file_contains "$ROOT/README.md" "Documentation"
   assert_file_contains "$ROOT/docs/README.md" "Reading Path"
+  assert_file_contains "$ROOT/docs/en/README.md" "Lodestar Documentation"
   assert_file_contains "$ROOT/docs/en/why-lodestar.md" "Why Lodestar Exists"
   assert_file_contains "$ROOT/docs/en/design.md" "Design and Architecture"
   assert_file_contains "$ROOT/docs/en/output-path.md" "How Lodestar Shapes Output"

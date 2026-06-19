@@ -2,7 +2,7 @@
 
 Lodestar is a **portable project-level goal-orientation, anti-drift, and lightweight domain
 modeling skill** for AI coding agents, packaged for both **Claude Code** (`~/.claude/skills/`)
-and **Codex** (`~/.codex/skills/` / `.codex-plugin/`). Version **1.2.0**.
+and **Codex** (`~/.codex/skills/` / `.codex-plugin/`). Version **1.3.0**.
 
 It has zero runtime dependencies for the skill itself. The repo includes plain bash convenience
 scripts for init/status/install/hooks.

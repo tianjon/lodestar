@@ -1,5 +1,21 @@
 # Changelog
 
+## 1.3.0 - 2026-06-19
+
+- Injected hook context is now marked as **silent orientation**: agents are told to use it to steer
+  but never echo, restate, or mention it in deliverables, and to produce only the deliverable without
+  restating the goal as a preamble (anchor + preamble leaks found by the evals).
+- Slimmed the PreToolUse drift-check injection to the Mode/Goal/Done-when lines instead of dumping
+  the full anchor on every mutating tool call.
+- Added the `su-dongpo` content-development eval and a `goal-shift` variant (goal changes mid-run) to
+  test orientation persistence across cold restarts.
+- Added an SEO/visual README pass: hero banner, badge row, language switcher, and a Chinese README.
+- Ran an A/B/C eval gauntlet (four pilots, including a blind-judge run) and recorded honest results in
+  `evals/FINDINGS.md`: cross-restart persistence of *changed* goals is supported; a structured anchor
+  beating a plain reminder is **not** yet shown.
+- Aligned README/docs claims with the evidence: the headline value is persisting information that
+  changes across context resets; `minimal` profile stays the default and the heavier schema is unproven.
+
 ## 1.2.0 - 2026-06-19
 
 - Uses `.lodestar/` as the sole project state namespace.

@@ -41,6 +41,9 @@ EOF
 
   cat <<EOF
 <LODESTAR_CONTEXT>
+SILENT orientation context: use it to steer your work. Do NOT echo, quote, restate, or narrate it,
+and never mention "Lodestar" or "anchor" in any user-facing output or deliverable. Produce only the
+deliverable — do not restate the goal or narrate your process as a preamble.
 Project root: $root
 Authoritative state dir: .lodestar/
 Read order: anchor.md -> domain.md -> state.md -> log.md
@@ -63,7 +66,9 @@ handoff_excerpt() {
 
   cat <<EOF
 <LODESTAR_HANDOFF>
-Use Lodestar as the project orientation layer. Before acting, identify which Goal/GAP your work
+SILENT orientation context: use it to steer; do NOT echo, quote, or restate it, never mention
+"Lodestar" or "anchor" in user-facing output, and produce only the deliverable without a
+goal-restating preamble. Before acting, identify which Goal/GAP your work
 serves; after acting, return state, evidence, decision, GAP, and next-action updates.
 
 EOF

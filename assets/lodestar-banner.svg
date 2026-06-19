@@ -1,0 +1,37 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1280 360" role="img" aria-label="Lodestar — goal-orientation and anti-drift for AI coding agents" font-family="'Segoe UI', 'Helvetica Neue', Arial, sans-serif">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#0a1228"/>
+      <stop offset="1" stop-color="#0e1d44"/>
+    </linearGradient>
+    <radialGradient id="glow" cx="0.5" cy="0.5" r="0.5">
+      <stop offset="0" stop-color="#ffd36b" stop-opacity="0.30"/>
+      <stop offset="1" stop-color="#ffd36b" stop-opacity="0"/>
+    </radialGradient>
+    <linearGradient id="gold" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#ffe39a"/>
+      <stop offset="1" stop-color="#f5b942"/>
+    </linearGradient>
+  </defs>
+
+  <rect x="0" y="0" width="1280" height="360" rx="24" fill="url(#bg)"/>
+
+  <!-- faint constellation dots -->
+  <g fill="#9fb0c9" opacity="0.5">
+    <circle cx="520" cy="60" r="2"/><circle cx="980" cy="58" r="1.6"/><circle cx="1180" cy="120" r="2.2"/>
+    <circle cx="1130" cy="250" r="1.6"/><circle cx="700" cy="312" r="1.8"/><circle cx="900" cy="300" r="1.4"/>
+    <circle cx="1220" cy="300" r="1.6"/><circle cx="60" cy="300" r="1.6"/>
+  </g>
+
+  <!-- north star mark -->
+  <circle cx="200" cy="180" r="150" fill="url(#glow)"/>
+  <circle cx="200" cy="180" r="120" fill="none" stroke="#ffd36b" stroke-opacity="0.22" stroke-width="1.5"/>
+  <path d="M200,114 L214,166 L266,180 L214,194 L200,246 L186,194 L134,180 L186,166 Z" fill="url(#gold)" opacity="0.85" transform="rotate(45 200 180)"/>
+  <path d="M200,84 L220,160 L296,180 L220,200 L200,276 L180,200 L104,180 L180,160 Z" fill="url(#gold)"/>
+  <circle cx="200" cy="180" r="9" fill="#fff7e0"/>
+
+  <!-- wordmark -->
+  <text x="382" y="176" fill="#f5f7fb" font-size="96" font-weight="700" letter-spacing="4">Lodestar</text>
+  <text x="386" y="232" fill="#aeb9cf" font-size="31" font-weight="500">Goal-orientation &amp; anti-drift for AI coding agents</text>
+  <text x="386" y="280" fill="#6f7e9e" font-size="22" font-weight="400">Claude Code · Codex · any repo · zero runtime dependencies</text>
+</svg>

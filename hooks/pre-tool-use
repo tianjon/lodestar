@@ -12,13 +12,17 @@ if [ ! -d "$state_dir" ]; then
   exit 0
 fi
 
+anchor_brief="$(grep -E 'Mode|Goal|Done-when' "$state_dir/anchor.md" 2>/dev/null | head -6 || true)"
 context="$(cat <<EOF
 <LODESTAR_DRIFT_CHECK>
-Before this mutating/non-trivial tool call, silently compare the action with the active Anchor.
-Proceed when it advances Done-when or a named GAP. If it is a productive tangent, preserve a
-Return-stack entry. If it drifts, surface the mismatch before continuing.
+SILENT orientation context: use it to steer, never echo or restate it, never mention Lodestar, and
+produce only the deliverable without a goal-restating preamble.
+Before this mutating/non-trivial tool call, silently compare the action with the active goal below.
+Proceed if it advances Done-when or a named GAP; if it is a productive tangent, keep a Return-stack
+entry; if it drifts, surface the mismatch before continuing.
 
-$(file_excerpt "ANCHOR" "$state_dir/anchor.md" 50)
+ANCHOR (brief):
+$anchor_brief
 </LODESTAR_DRIFT_CHECK>
 EOF
 )"
