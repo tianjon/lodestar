@@ -16,6 +16,7 @@ context — re-reading it is cheap and re-grounds you instantly.
 
 ```markdown
 ## ⚓ ANCHOR  (re-read first, every session and after every consolidation)
+- 模式 Mode: <explore | clarify | decide | execute | review>
 - 目标 Goal: <the ONE active objective right now — a single sentence>
 - 完成定义 Done-when: <observable acceptance criteria; how we'll know it's finished>
 - 边界 Boundaries: <what is explicitly OUT of scope this phase>
@@ -24,6 +25,14 @@ context — re-reading it is cheap and re-grounds you instantly.
 ```
 
 Keep the Goal to **one** sentence. If you can't, the goal isn't decided yet — surface that.
+
+Mode changes how to interpret drift:
+
+- `explore`: drifting can be useful; record promising branches and avoid premature convergence.
+- `clarify`: keep asking what would make the Goal one sentence and Done-when observable.
+- `decide`: keep options, evidence, consequences, and Decision ids visible.
+- `execute`: treat scope expansion as high-risk unless it directly advances Done-when.
+- `review`: compare outcomes against Done-when, open GAPs, and Decision Log.
 
 ## The drift check (run silently, often)
 
@@ -43,6 +52,7 @@ Before any non-trivial action, and roughly every 5–10 exchanges in a long sess
 - Scope is silently growing ("while we're here, let's also…") past the boundaries.
 - The user asked a quick question and you've turned it into a project (or vice-versa).
 - You can't say in one sentence how the current action closes the active GAP.
+- A task skill is being followed correctly, but the skill no longer serves the active Goal.
 
 ## Surfacing drift (don't just follow along)
 
@@ -52,9 +62,9 @@ When you detect drift, name it plainly and offer the fork — then wait:
 > to the goal, or we **re-anchor** on <topic> as the new goal. Which?
 
 - **Park** → push onto the return-stack, return to the anchored goal.
-- **Re-anchor** → rewrite the ANCHOR Goal/done-when/boundaries, and record it as a directive
-  via Protocol 2 with `imp ≥ 0.8`. Re-anchoring is a real decision, logged at the source, not a
-  silent slide.
+- **Re-anchor** → rewrite the ANCHOR Mode/Goal/done-when/boundaries, record it as a directive
+  via Protocol 2 with `imp ≥ 0.8`, and create/update a `DEC-...` entry. Re-anchoring is a real
+  decision, logged at the source, not a silent slide.
 
 The failure mode Lodestar exists to prevent is the *silent* slide — drifting without anyone
 noticing until the session has produced a lot of work aimed at the wrong target.

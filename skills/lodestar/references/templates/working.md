@@ -6,6 +6,7 @@ Local-private by default. Do not commit raw memory unless the user explicitly op
 reviewed, redacted content.
 
 ## ⚓ ANCHOR  (re-read first, every session and after every consolidation)
+- 模式 Mode: clarify  <!-- explore | clarify | decide | execute | review -->
 - 目标 Goal: <the ONE active objective right now — a single sentence>
 - 完成定义 Done-when: <observable acceptance criteria>
 - 边界 Boundaries: <what is explicitly OUT of scope this phase>
@@ -22,6 +23,21 @@ reviewed, redacted content.
 - 蓝图: <if affected>
 - 目标: <if affected>
 - 现状: <if affected>
-- GAP: [要求: <want> | 实践: <field practice> | 突破解: <transcendent third path>]
+- 假设 Assumptions: <if any>
+- 证据 Evidence: <file/command/URL/MemPalace drawer/user quote/etc.; confidence low|medium|high>
+- GAP:
+  - id: GAP-<YYYYMMDD>-<n>
+  - 要求 Requirement: <want>
+  - 实践 Practice: <project fact / field practice / literature claim>
+  - 证据 Evidence: <source or evidence: missing>
+  - 置信度 Confidence: <low|medium|high>
+  - 突破解 Breakthrough: <transcendent third path>
+  - 下一步 NextAction: <ACT id or concrete next step>
+- 决策 Decision:
+  - id: DEC-<YYYYMMDD>-<n>
+  - chose: <choice made>
+  - options: <alternatives considered>
+  - rationale: <why>
+  - follow-up: <ACT id or next step>
 
 -->

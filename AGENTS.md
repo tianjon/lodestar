@@ -1,21 +1,21 @@
 # AGENTS.md — Lodestar
 
-Lodestar is a **portable project-memory and anti-drift skill** for AI coding agents, packaged for
-both **Claude Code** (`~/.claude/skills/`) and **Codex** (`~/.codex/skills/`). Version **1.0.0**.
+Lodestar is a **portable goal-orientation and anti-drift skill** for AI coding agents, packaged for
+both **Claude Code** (`~/.claude/skills/`) and **Codex** (`~/.codex/skills/`). Version **1.1.0**.
 Zero runtime dependencies — it is markdown + protocols executed by the agent, not code.
 
 ## What it does
 
-Holds a project's **Blueprint / Goal / State / GAP** in `.memory/` as a durable source of truth,
-and runs an always-on **drift check** so long, wandering conversations get steered back to the
-active goal instead of being pulled off by the latest tangent. Full spec:
+Holds a project's **Blueprint / Mode / Goal / State / GAP / Decision Log** in `.memory/` as a
+durable source of truth, and runs an always-on **drift check** so long, wandering conversations
+get steered back to the active goal instead of being pulled off by the latest tangent. Full spec:
 [`skills/lodestar/SKILL.md`](skills/lodestar/SKILL.md).
 
 ## Architecture
 
 | Dir | Description |
 |-----|-------------|
-| `skills/lodestar/` | The skill. `SKILL.md` is the entry; `references/` holds the deep playbook, grounding, pointer snippet, and file templates. Self-contained — never links outside its own folder. |
+| `skills/lodestar/` | The skill. `SKILL.md` is the entry; `references/` holds the deep playbook, ontology, skill bridge, grounding, pointer snippet, and file templates. Self-contained — never links outside its own folder. |
 | `.claude-plugin/` | `marketplace.json` so Claude Code can install it as a plugin. |
 | `.github/workflows/ci.yml` | Release smoke tests for Linux/macOS. |
 | `bin/lodestar` | CLI: `init` a project's `.memory/`, `status`, `install`. |

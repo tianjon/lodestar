@@ -17,13 +17,21 @@ are pointers, not appeals to authority.
   notes but a single negative-feedback system.
 - **Active Inference**: a GAP is prediction error between the intended world and the feasible
   world. Action exists to minimize it.
+- **Mode switching**: exploration and execution are different cognitive regimes. `explore`
+  protects sensemaking; `clarify` turns ambiguity into a one-sentence goal; `decide` compares
+  evidence and consequences; `execute` resists drift; `review` audits claims against outcomes.
 - **Recency bias is the adversary** (the anti-drift loop): without an explicit anchor, an
   autoregressive agent over-weights the latest tokens and the goal decays. The pinned ANCHOR
   block is a fixed setpoint that the drift check repeatedly compares against — a deliberate
   counterweight to that bias.
+- **Evidence-backed reasoning**: Practice claims and State claims should be supported by cited
+  evidence and confidence. Otherwise the model's fluent guess can masquerade as field practice.
 - **TRIZ + double-loop learning**: resolve a GAP by transcending the 要求/实践 contradiction
   rather than picking a side. Double-loop means the system may question its own goals — with
   evidence — not just optimize within them.
+- **Procedural scaffolding**: task skills provide methods for working; Lodestar provides the
+  orientation substrate that decides whether those methods still serve the active goal.
 
 The throughline: **don't trust your own most recent thought by default.** Write requirements at
-the source, keep the goal as an explicit external setpoint, and act to close a measured gap.
+the source, keep the goal as an explicit external setpoint, cite evidence for practice claims,
+and act to close a measured gap.

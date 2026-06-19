@@ -1,13 +1,14 @@
 ---
 name: lodestar
-description: Portable project-memory and anti-drift system for any repository. Invoke at session start to load the project's Blueprint/Goal/State/GAP anchor; whenever the user gives an instruction or requirement (to record it at the source into structured memory); when a long conversation drifts off the active goal (to re-anchor and refocus); and when memory files grow past their size budget (to consolidate). Takes priority over generic CLAUDE.md / AGENTS.md guidance for goals, current state, and GAP tracking. Triggers: session start, any user directive, "记忆 / 更新记忆 / 记下 / 跑偏了 / 拉回来", "load memory", "are we on track", "we drifted", "refocus", "update memory".
+description: Portable goal-orientation and anti-drift system for any repository. Invoke at session start to load the project's Blueprint/Mode/Goal/State/GAP/Decision anchor; whenever the user gives an instruction or requirement (to record it at the source into structured memory); before/after task skills such as debugging, TDD, review, or superpowers (to align them with the active Goal/GAP); when a long conversation drifts off the active goal (to re-anchor and refocus); and when memory files grow past their size budget (to consolidate). Takes priority over generic CLAUDE.md / AGENTS.md guidance for goals, current state, and GAP tracking. Triggers: session start, any user directive, "记忆 / 更新记忆 / 记下 / 跑偏了 / 拉回来", "load memory", "are we on track", "we drifted", "refocus", "update memory", "superpowers".
 ---
 
-# Lodestar — Portable Project Memory & Anti-Drift System
+# Lodestar — Portable Goal-Orientation & Anti-Drift System
 
 A **lodestar** is the star you steer by. This skill is that star for a working session:
 a single, durable source of truth for **what we are building, where we are, and the gap
-between them** — and an active loop that keeps the conversation from drifting away from it.
+between them** — and an active loop that turns conversation into clearer goals and better
+next actions.
 
 Lodestar is **project-agnostic**. It reads the active project's name and goals from its own
 memory files (`.memory/`), not from any hardcoded project. Drop it into any repo.
@@ -17,8 +18,9 @@ memory files (`.memory/`), not from any hardcoded project. Drop it into any repo
 1. **Record the user's requirement at the source** — verbatim where safe, before interpreting it.
 2. **Compare it objectively against frontier practice** — neither flatter the user nor
    bow to the literature.
-3. **Track and close the GAP** — biased toward a third path that transcends both when they
-   conflict. **Break through experience limits.**
+3. **Track and close the GAP** — with assumptions, evidence, confidence, decisions, and
+   next actions, biased toward a third path that transcends both when they conflict.
+   **Break through experience limits.**
 4. **Hold the anchor** — in long, wandering conversations, keep steering back to the active
    goal instead of being pulled off by the most recent tangent.
 
@@ -44,6 +46,21 @@ protocols executed by you, the agent.
 
 The four are not a list — they are a single feedback loop: Blueprint and Goal are setpoints,
 State is the measurement, GAP is the error signal you act to minimize.
+
+## Ontology (what Lodestar models)
+
+Lodestar models orientation, not general recall. Its core objects are:
+
+- **Anchor**: current Mode, Goal, Done-when, Boundaries, Return-stack, Drift check.
+- **Directive**: the user's meaningful instruction, recorded at the source.
+- **GAP**: Requirement vs Practice, backed by Evidence and Confidence, plus Breakthrough and
+  NextAction.
+- **Evidence**: file, command output, commit, issue, web link, MemPalace drawer, user quote, or
+  observed behavior that supports a claim.
+- **Decision**: an explicit path choice with alternatives, rationale, and consequences.
+- **SkillRun**: a task-specific workflow such as TDD, debugging, review, or superpowers.
+
+Full definitions and invariants: `references/ontology.md`.
 
 ## Files
 
@@ -78,10 +95,18 @@ This is the headline. Long conversations wander; each new message exerts a pull,
 enough turns the agent is optimizing for the latest tangent instead of the actual goal.
 Lodestar counteracts that with an explicit anchor.
 
-**The ANCHOR block lives pinned at the top of `working.md`** and holds the active 目标 Goal,
+**The ANCHOR block lives pinned at the top of `working.md`** and holds the active Mode, 目标 Goal,
 its done-when criteria, the boundaries (what is out of scope this phase), and a return-stack
 of parked tangents. Re-read it **first** at session start, after any consolidation, and
 whenever you feel the thread has wandered.
+
+**Mode** controls how strict the drift check should be:
+
+- `explore` → allow deliberate divergence; capture promising directions.
+- `clarify` → converge unclear goals into one sentence and observable Done-when.
+- `decide` → compare options, evidence, and consequences.
+- `execute` → keep work tightly aligned to Done-when and Boundaries.
+- `review` → verify outcomes against Done-when, Decisions, and open GAPs.
 
 **Drift check** — cheap, run it silently before any non-trivial action and roughly every
 5–10 exchanges in a long session. Ask: *does this still serve the active 目标?* Three outcomes:
@@ -94,7 +119,7 @@ whenever you feel the thread has wandered.
   the new goal?"* Wait for the user, then either park (return-stack) or re-anchor (rewrite the
   ANCHOR Goal and record the change via Protocol 2).
 
-**Re-anchor** rewrites the ANCHOR block's Goal/done-when/boundaries when the objective
+**Re-anchor** rewrites the ANCHOR block's Mode/Goal/done-when/boundaries when the objective
 genuinely changes — always as a recorded directive (Protocol 2, importance ≥ 0.8), never silently.
 
 Rule of thumb: the user may chase tangents freely; **you** hold the line and name the drift.
@@ -104,8 +129,8 @@ Being the one who remembers the goal is the entire job.
 
 1. Read `.memory/consolidated.md` — the ABSTRACT header first, then current state + trend log.
 2. Read `.memory/working.md` — the **ANCHOR block first**, then recent episodic detail.
-3. Treat these as the authoritative Blueprint/Goal/State/GAP. Where they conflict with generic
-   CLAUDE.md / AGENTS.md guidance, **Lodestar wins**.
+3. Treat these as the authoritative Blueprint/Mode/Goal/State/GAP/Decision Log. Where they
+   conflict with generic CLAUDE.md / AGENTS.md guidance, **Lodestar wins**.
 4. If `.memory/` is missing, run Bootstrap.
 
 ## Protocol 2 — Record (on every user directive)
@@ -119,7 +144,22 @@ For each meaningful user instruction, append ONE entry to `working.md`:
 - 蓝图: <if affected>
 - 目标: <if affected>
 - 现状: <if affected>
-- GAP: [要求: <what the user wants> | 实践: <field/literature practice> | 突破解: <transcendent third path>]
+- 假设 Assumptions: <if any>
+- 证据 Evidence: <file/command/URL/MemPalace drawer/user quote/etc.; confidence low|medium|high>
+- GAP:
+  - id: GAP-<YYYYMMDD>-<n>
+  - 要求 Requirement: <what the user wants>
+  - 实践 Practice: <project fact / field practice / literature claim>
+  - 证据 Evidence: <source or evidence: missing>
+  - 置信度 Confidence: <low|medium|high>
+  - 突破解 Breakthrough: <transcendent third path>
+  - 下一步 NextAction: <ACT id or concrete next step>
+- 决策 Decision:
+  - id: DEC-<YYYYMMDD>-<n>
+  - chose: <choice made>
+  - options: <alternatives considered>
+  - rationale: <why>
+  - follow-up: <ACT id or next step>
 ```
 
 Rules:
@@ -130,7 +170,9 @@ Rules:
 - **Score importance** (0..1): directives that set/alter Blueprint or close a major GAP ≥ 0.8.
 - Only fill facets the instruction actually touches.
 - If the directive changes the active objective, **also update the ANCHOR block** (Protocol 0).
-- If it reveals a GAP, fill all three GAP columns; default to surfacing 突破解.
+- If it reveals a GAP, assign a `GAP-...` id, cite Evidence or mark `evidence: missing`, set
+  Confidence, and default to surfacing 突破解.
+- If it makes a path choice, record a `DEC-...` decision with options and follow-up.
 
 ## Protocol 3 — Consolidate (when working.md > 64K)
 
@@ -139,7 +181,8 @@ Rules:
 2. **Retain set** = newer-half **∪** any older entry with `imp ≥ 0.8` (importance-pinned — never
    evict a Blueprint-level decision just because it is old). Keep the retain-set in working.md.
 3. **Reflect** the evicted entries into `consolidated.md`:
-   - Update the **current-state** block (latest Blueprint/Goal/State/open GAPs).
+   - Update the **current-state** block (latest Blueprint/Goal/Mode/State/open GAPs).
+   - Preserve Decision Log entries with their `DEC-...` ids.
    - Append events to the **trend log** (what changed, from X → Y, why).
    - Refresh the **ABSTRACT** header (one line: project + phase + biggest open GAP).
 4. **If consolidated.md > 128K**: recursively abstract — coarsen trend-log granularity
@@ -148,16 +191,39 @@ Rules:
 
 ## Protocol 4 — GAP engine (continuous)
 
-Every open GAP carries three columns and a bias:
+Every open GAP carries a structured claim and a bias:
 - `要求`: the user's requirement, stated honestly (not flattered).
 - `实践`: how the front line / literature actually does it (objective comparison).
+- `证据`: the source for the practice/current-state claim; if missing, say so.
+- `置信度`: low / medium / high.
 - `突破解`: when 要求 and 实践 conflict, a third path via TRIZ / dialectical synthesis.
+- `下一步`: the action that should reduce the GAP.
   **Default to surfacing 突破解**, and label whether it deviates from the requirement, the
   literature, or both.
 
 Double-loop authorization: Lodestar may challenge the user's own Goal/Blueprint, but must state
 the reason and evidence. It does not obey blindly, and it does not follow the literature blindly.
 The principle is **break through experience limits** — from the front line.
+
+## Protocol 5 — Skill Bridge (task skills sit above Lodestar)
+
+Lodestar is the orientation substrate. Task skills such as superpowers, TDD, debugging, review,
+or design methods decide **how** to work; Lodestar decides whether that work serves the active
+Goal.
+
+Before invoking a task skill:
+
+1. Read the ANCHOR.
+2. Name which Goal/GAP the skill serves.
+3. Check Mode and Boundaries.
+
+After the task skill:
+
+1. Record what changed in State.
+2. Record Decisions and GAP updates.
+3. Set or update the next Action.
+
+Full bridge protocol: `references/skill-bridge.md`.
 
 ---
 
@@ -180,8 +246,9 @@ Two-tier memory (fast `working.md`, slow `consolidated.md`) mirrors **Complement
 Systems**; size-budget paging mirrors **MemGPT**; recency×importance retention mirrors
 **Generative Agents**; the append-only trend log + materialized current-state is **Event
 Sourcing**; the four facets as one loop is **Perceptual Control Theory**; a GAP as prediction
-error to minimize is **Active Inference**; transcending the 要求/实践 contradiction is **TRIZ +
-double-loop learning**. Full notes: `references/cognitive-grounding.md`.
+error to minimize is **Active Inference**; Mode switching protects exploration vs execution;
+transcending the 要求/实践 contradiction is **TRIZ + double-loop learning**. Full notes:
+`references/cognitive-grounding.md`.
 
 ## Reference routing
 
@@ -189,5 +256,7 @@ double-loop learning**. Full notes: `references/cognitive-grounding.md`.
 |---|---|
 | Deep anti-drift playbook (return-stack, drift signals, re-anchor) | `references/anti-drift.md` |
 | Why the design is shaped this way | `references/cognitive-grounding.md` |
+| Core ontology and invariants | `references/ontology.md` |
+| Using Lodestar below task skills / superpowers | `references/skill-bridge.md` |
 | Snippet to wire a project's CLAUDE.md / AGENTS.md | `references/project-pointer.md` |
 | Fresh file templates | `references/templates/working.md`, `references/templates/consolidated.md` |

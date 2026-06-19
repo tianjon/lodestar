@@ -125,7 +125,7 @@ cmd_status() {
   echo ""
   echo "  ⚓ ANCHOR:"
   awk '/## ⚓ ANCHOR/{f=1} f{print "    "$0} /^---$/{if(f)exit}' "$mem/working.md" 2>/dev/null \
-    | grep -E 'Goal|Done-when|Boundaries|Return-stack|Drift' || echo "    (no anchor block found)"
+    | grep -E 'Mode|Goal|Done-when|Boundaries|Return-stack|Drift' || echo "    (no anchor block found)"
 }
 
 cmd_install() { exec "$REPO_DIR/install.sh" "$@"; }
