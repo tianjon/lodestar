@@ -1,5 +1,14 @@
 # Changelog
 
+## Unreleased
+
+- Extended the eval gauntlet with three harder tasks (`descent-drift`, `rabbit-hole`, `multitask-chat`)
+  testing memory **representation** (flat list vs blob vs tree) under multi-step, multi-thread,
+  cold-restart pressure.
+- **Finding:** a flat, append-only notes list is the best representation. A **tree** scored *worst* in
+  the hardest test — re-rendering a tree across many self-maintained updates loses information. Updated
+  README/docs to recommend `minimal` (flat) and to advise against nested/tree memory structure.
+
 ## 1.3.0 - 2026-06-19
 
 - Injected hook context is now marked as **silent orientation**: agents are told to use it to steer

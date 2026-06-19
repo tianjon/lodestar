@@ -1,56 +1,60 @@
-# Eval Findings (pilot — directional)
+# Eval Findings (pilot — directional, but now converging)
 
-Status: **n=2–3 per arm, pilot scale.** Directional signals, not significance. We report negative and
-null results as readily as positive ones — that is the point. The headline below is honest and narrow.
+Status: **n=2–3 per arm, pilot scale.** Directional, not significant — but seven runs now point the
+same way, and the decisive run (#7) has a clear mechanism, not just a number.
 
-## Headline
+## Headline (after 7 runs)
 
-Across four pilots, **the only manipulation that ever discriminated between arms was a mid-run goal
-change.** Every static task hit a ceiling: a strong model writing a focused piece holds a fixed goal
-and honors reasonable constraints *by default*, so no arm fails and nothing is measured.
+1. **Persisting the relevant information across resets is Lodestar's real value.** Confirmed wherever
+   the bare agent actually loses the info (runs 2, 5, 6, 7).
+2. **Among memory representations, a flat append-only list is best — and *more* structure is actively
+   worse.** In the hardest, most realistic test (run 7: 3 interleaved threads, agent maintains its own
+   notes across 9 cold-restart turns), **flat (B) scored a perfect 3.0 / 100% key recall; the tree (D)
+   scored 1.5 — worse than an unstructured blob (C, 1.83) and barely above bare (A, 1.0).**
+3. **Mechanism:** maintaining a *tree* across many updates is costly — the agent re-renders it each
+   turn and **drops/garbles entries** (D literally answered "my notes don't record that" and lost the
+   Postgres-only constraint). A flat list is append-only and lossless, so it retains everything.
 
-So Lodestar's demonstrable value is **narrow and specific**:
-
-- ✅ **Persisting information that *changes* across a context reset** — a goal that shifted, a decision
-  made mid-stream. The bare arm cannot know it changed after the conversation is gone; re-injected
-  orientation holds it.
-- ❌ Not "help the model stay on a fixed goal" — the model does that unaided.
-- ❌ Not "honor static constraints" — the model does that unaided.
-- ❓ **Structured schema vs plain reminder (B vs C): never shown.** B≈C when the goal changed;
-  all-perfect (no separation) on the constraints task. Whenever orientation is re-injected, an
-  unstructured reminder does as well as the labeled anchor.
+This **resolves the H1/H2 question and reverses the descent-drift hint:** descent-drift's tree win
+came from a **driver-maintained** (perfect) tree. The moment a *real agent* must maintain the tree —
+the faithful Lodestar condition — the maintenance cost backfires and the tree loses.
 
 ## Runs
 
-| Run | Task | Question | Result |
-|---|---|---|---|
-| 1 | `su-dongpo` base | does orientation help a long essay? | **Null (ceiling).** All arms held the fixed thesis. Surfaced anchor text leaking into B's prose → fix T8. |
-| 2 | `su-dongpo` goal-shift | does re-injection survive a mid-run goal change? | **Discriminates. Persistence supported (directionally):** after the goal changed at ch4, bare arm A adopted it for one chapter then reverted (0/2); B and C held it (2/2). **B≈C.** |
-| 3 | `su-dongpo` constraints (counter) | does a structured anchor hold constraints better? | **Invalid metric.** Counting `御史台`/`苏辙` conflated violation with compliance + B's own boundary vocabulary → discarded. T8 confirmed (`leak_raw`=0). |
-| 4 | `su-dongpo` constraints (T9, blind judge) | same, measured properly | **Null (ceiling).** Blind judge: all arms 3/3, zero real violations — confirming run 3's counts were artifacts. T8 re-confirmed. Residual: goal sentence still leaks as a process preamble. |
+| Run | Task | Verdict |
+|---|---|---|
+| 1 | su-dongpo base | Null (ceiling). Surfaced anchor leak → T8. |
+| 2 | su-dongpo goal-shift | **Persistence supported.** Bare reverts; re-injection holds. B≈C. |
+| 3 | constraints (counter) | Invalid metric. Discarded. |
+| 4 | constraints (blind judge) | Null (ceiling). |
+| 5 | descent-drift (driver-maintained tree) | D≫flat — but tree was perfectly maintained by the driver; unreplicated. |
+| 6 | rabbit-hole (single finale, 5 notes) | B=C=D. Structure irrelevant on a tiny note-set. |
+| 7 | **multitask-chat (agent-maintained notes, 3 threads, 9 turns)** | **Flat (B) ≫ tree (D); tree HURTS.** Decisive. |
 
 ## What is supported
-- **Cross-restart persistence of *changed* information** (run 2) — Lodestar's core value, in the one
-  regime where the bare arm genuinely fails.
-- **T8 silent-anchor fix** (runs 3, 4) — apparatus markers no longer appear in deliverables.
+- **Persistence of relevant info across resets** — the validated core.
+- **Flat, append-only notes as the representation** — empirically best (run 7), because it is cheap to
+  maintain losslessly.
+- **T8 silent-anchor fix** (runs 3, 4).
 
-## What is NOT supported / still open
-- **Structured schema > plain reminder (B > C).** Never demonstrated. Honest default: the value is
-  hooks + a minimal re-injected goal; `minimal` profile is the right default; the heavy schema is
-  unproven.
-- A structure advantage, if it exists, would only appear when *many* things change/accumulate across
-  resets so a flat reminder gets diluted — an experiment not yet run.
+## What is refuted
+- **Upgrading memory to a tree.** Not just "no benefit" — **net harmful** when the agent maintains it
+  (run 7). The honest answer to "do we need a tree?" is **no.**
+- By extension, **"more structure = better" is false here.** This raises a concrete, testable product
+  question: is Lodestar's `full` profile (more structure) *worse* than `minimal`? Run 7's mechanism
+  predicts yes. Worth a direct `minimal` vs `full` eval before recommending `full` for anything.
 
-## Measurement bugs found (the recurring lesson: green ≠ measured)
-1. **Title pollution** — source title `素材骨架` used as essay title tripped the leak scan. Fixed.
-2. **Cleaner masking** — `cleanProse` stripped leaked lines before counting them. Fixed.
-3. **Boundary-as-occurrence** — counting forbidden terms scored *compliance* ("此处不展开御史台") as a
-   violation. Replaced by a blind judge (T9) that distinguishes developed-topic from passing-mention.
-4. **Residual soft leak (open, T10)** — apparatus labels are gone, but expansion agents still emit
-   process meta-text and restate the goal as a preamble ("这是我把握的方向,我直接写正文").
+## Caveats
+- n=2 in run 7 (consistent across both seeds, with a clear mechanism, but small).
+- "Agent maintains its own notes" makes this a test of *templates for agent-maintained memory*
+  (the realistic Lodestar case), not abstract data structures.
+- Replicate at n≥5 and on a second multi-thread domain to firm it up.
 
-## Next (optional)
-- Strengthen the silent instruction to suppress goal-restatement preambles (T10).
-- If the structure question is worth chasing: a task where *many* constraints/goals evolve across
-  resets, so a flat reminder dilutes and a structured anchor might separate. Otherwise the honest
-  conclusion stands: **persistence is the value; minimal + hooks is the core; the schema is unproven.**
+## Product implications (evidence-backed)
+- **Keep the anchor/notes flat and append-only.** Do **not** add tree/nested structure to the memory
+  files. This *validates* Lodestar's minimal-by-default design and argues against its heavier schema.
+- Consider making `minimal` the only recommended profile pending a `minimal`-vs-`full` eval.
+
+## Open measurement debt
+- Residual goal-restatement preamble (T10).
+- Run 6 harness artifact: an un-anchored agent leaked unrelated repo content into its answer.

@@ -199,12 +199,15 @@ Lodestar ships a reproducible [eval harness](evals/README.md) — three arms (ba
 equal-volume placebo reminder) — and reports results honestly, null and negative included. The pilot
 [findings](evals/FINDINGS.md) so far:
 
-- ✅ **Supported:** persisting information that *changes* across a context reset (a goal that shifts mid-run).
-  The bare arm reverts to the stale goal; re-injected orientation holds the new one.
-- ❓ **Not yet shown:** that the structured schema beats a plain re-injected reminder (B ≈ C). So `minimal`
-  profile is the honest default and the heavier schema stays optional.
-- ❌ **Not claimed:** "keep the model on a fixed goal" or "honor static constraints" — a strong model does
-  those unaided (every static task hit a ceiling).
+- ✅ **Supported:** persisting information that *changes* across a context reset (a goal that shifts mid-run,
+  decisions juggled across an interleaved multi-thread chat). The bare arm loses it; re-injected orientation keeps it.
+- ✅ **Best representation — flat and append-only.** In the hardest multi-thread test a flat notes list scored
+  perfectly, beating both an unstructured blob and a **tree** — which scored *worst*, because re-rendering a tree
+  across many updates loses information. `minimal` (flat) is the recommended default.
+- ❌ **Refuted — do not add nested/tree structure** to the memory files: more structure was net-harmful when the
+  agent maintains it across cold restarts.
+- ❌ **Not claimed:** "keep the model on a fixed goal" or "honor static constraints" — a strong model does those
+  unaided (every static task hit a ceiling).
 
 Smoke-test the harness without API spend:
 
