@@ -1,0 +1,117 @@
+# Lodestar Evals — does the loop change the next action?
+
+## What we are testing (and what we are NOT)
+
+We are **not** testing "how much did it remember." We are testing the causal claim:
+
+> Recorded goal / domain / GAP, fed through `anchor → drift-check → action-selection → state-update`,
+> measurably changes the agent's **next action** — and that shows up most on long, drift-prone,
+> interruptible work.
+
+A good eval must be able to **fail**. We pre-commit (below) to results that would *not* support the
+claim, including regimes where Lodestar is overhead or harmful.
+
+## The three upgrades over a naive A/B
+
+### 1. Three arms, not two — isolate mechanism from "just reminding"
+- **A — bare:** `AGENTS.md` + a plain `TODO.md`. No anchor, no hooks.
+- **B — Lodestar:** filled `.lodestar/{anchor,domain,state}.md` + lifecycle hooks + drift check.
+- **C — placebo:** a `FOCUS.md` carrying the **same goal text as B, padded to the same token
+  volume**, re-injected at the same lifecycle points — but with *no* structure, GAP loop, or
+  state-update step.
+
+B>A only proves "extra goal text helps." **B>C is the real result**: it isolates whether the
+*structure + loop* add value beyond simply reminding the model of the goal more often. If B≈C,
+Lodestar's honest claim shrinks to "a disciplined way to repeat the goal" — still real, but weaker.
+All three arms receive the **same goal information**; only the *mechanism* differs.
+
+### 2. Objective metrics first, LLM-judge second — and never let the judge read Lodestar
+- The goal and **done-when are owned by the experimenter**, fixed and external, identical across
+  arms. The LLM judge scores every arm against *that* — never against `.lodestar/anchor.md` (which
+  is B's own claim of the goal; using it would hand B a circular advantage).
+- The judge runs **blind to arm**: transcripts are scrubbed of `.lodestar/`, `FOCUS.md`, hook
+  markers before judging. Use a 3-judge ensemble (median); ideally one cross-model judge.
+- Wherever a done-when can be written as a shell assertion, we **compute** the metric instead of
+  judging it (see `done_when.sh`). Computed > judged.
+
+### 3. Include a Lodestar-hostile task — find the boundary, don't sell
+A tool that "helps everywhere" is a red flag. The battery includes at least one short, single-shot,
+already-clear-goal task where we **expect B to tie or lose** (overhead). Honest evals map the edge
+of the effect.
+
+## Flagship experiment: cold-restart loop convergence
+
+This is the cleanest, most automatable test of the core differentiator (intent surviving context
+loss) and the direct operationalization of "the autonomous loop completes more smoothly with
+Lodestar."
+
+- The agent must drive a repo to a done-when over up to `K` iterations, **autonomously**.
+- **Between every iteration the conversation context is wiped** (a fresh headless invocation) — the
+  repo persists, and so does each arm's apparatus (A: AGENTS.md/TODO; B: `.lodestar/`; C: FOCUS.md).
+  This simulates compaction / fresh session / subagent handoff every single turn.
+- Scripted **temptations** (`temptations.txt`) are injected at set iterations: attractive tangents
+  that do not serve done-when and can eat the budget.
+- **Headline metric is objective:** iterations-to-done-when (or pass@K), plus waste-file count.
+
+Hypothesis: B reaches done-when in fewer iterations / higher pass@K than A and C, with fewer waste
+files, because the externalized anchor re-orients each cold iteration. Worked task:
+`tasks/release-prep-loop/`.
+
+## Scenario battery (your five, re-tagged with executable done-when + one hostile)
+
+| Task | Stress | done-when is | Lodestar expected |
+|---|---|---|---|
+| release-prep-loop | long-horizon + cold restarts + temptations | computed (`done_when.sh`) | **win** |
+| requirement-change | goal mutates mid-run | computed (new target met, old not) | win |
+| interrupt-barrage | repeated tangents | computed (waste files ≈ 0) + judged drift-recovery | win |
+| compaction-continue | forced summary, then continue | computed (next action correct) | win |
+| subagent-handoff | fresh-context subagent continues | computed + judged handoff quality | win |
+| quick-fix (**hostile**) | one-line bug, clear goal, single shot | computed | **tie or lose** (overhead) |
+
+## Metrics
+
+**Objective (computed, no LLM):**
+`done_when_passed`, `iterations_to_done`, `waste_files` (files touched outside the relevant set),
+`unrecovered_drift` (tangent artifacts present AND done-when unmet), `decision_violation`
+(output contradicts a planted prior decision — string/behavior check), `tokens`, `elapsed`,
+`tool_calls`.
+
+**Subjective (blinded 3-judge median, 0–3):**
+`drift_recovery`, `decision_reuse`, `domain_consistency`, `handoff_quality`, `output_quality`.
+
+**Within-B mechanistic check (diagnostic, NOT a cross-arm metric):** when a scripted temptation
+fires, does B's `anchor.md` drift-check / return-stack actually register it? This validates the
+*mechanism* is live, separate from the outcome comparison — kept apart to avoid circularity.
+
+## Statistics & pre-registration
+- `n ≥ 5` seeds per (task × arm); report mean ± stdev, not single runs.
+- Paired/blocked by task; report a paired sign test or bootstrap CI on the B−A and **B−C** deltas.
+- **Pre-register** expected direction per task (the table above) *before* running. Log the rubric
+  hash. No metric or task added after seeing results.
+
+## Falsification — what would mean "not supported"
+- B ≈ A on `drift_recovery` / `iterations_to_done` → the anchor isn't changing behavior.
+- B ≈ C → value is "reminding," not the mechanism.
+- On long tasks, B's extra `tokens`/`elapsed` is **not** repaid by higher `pass@K` → net cost.
+- B loses on the hostile task by more than a small margin → overhead is worse than predicted.
+
+## Automation
+`run.sh` drives every `(task × arm × seed × iteration)` cell headlessly via a pluggable
+`--agent` command (`claude -p …`, `codex exec …`, or `mock` for harness self-test), resets context
+per iteration, runs `done_when.sh`, and appends one JSON line per run to `results.jsonl`. The mock
+path lets the harness itself be smoke-tested deterministically with no API spend. The LLM-judge
+pass (`judge.md`) is a second, also-headless step over the blinded transcripts.
+
+## File map
+```
+evals/
+├── README.md                     # this protocol
+├── rubric.json                   # machine-readable metric definitions + pre-registered directions
+├── judge.md                      # blinded LLM-judge prompt (subjective metrics)
+├── run.sh                        # headless A/B/C × seed × iteration runner (mock-testable)
+└── tasks/
+    └── release-prep-loop/
+        ├── task.md               # instructions handed to the agent each iteration
+        ├── done_when.sh          # executable objective done-when + waste detector
+        └── temptations.txt       # scripted tangents, keyed by iteration
+```

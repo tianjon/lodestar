@@ -1,49 +1,58 @@
 # AGENTS.md — Lodestar
 
-Lodestar is a **portable goal-orientation and anti-drift skill** for AI coding agents, packaged for
-both **Claude Code** (`~/.claude/skills/`) and **Codex** (`~/.codex/skills/`). Version **1.1.0**.
-Zero runtime dependencies — it is markdown + protocols executed by the agent, not code.
+Lodestar is a **portable project-level goal-orientation, anti-drift, and lightweight domain
+modeling skill** for AI coding agents, packaged for both **Claude Code** (`~/.claude/skills/`)
+and **Codex** (`~/.codex/skills/` / `.codex-plugin/`). Version **1.2.0**.
 
-## What it does
+It has zero runtime dependencies for the skill itself. The repo includes plain bash convenience
+scripts for init/status/install/hooks.
 
-Holds a project's **Blueprint / Mode / Goal / State / GAP / Decision Log** in `.memory/` as a
-durable source of truth, and runs an always-on **drift check** so long, wandering conversations
-get steered back to the active goal instead of being pulled off by the latest tangent. Full spec:
+## What It Does
+
+Holds a project's **Anchor / Domain / State / GAP / Decision / Action** in `.lodestar/` as a
+durable source of truth, and optionally installs lifecycle hooks so long conversations, compaction,
+and subagents stay oriented to the active goal. Full spec:
 [`skills/lodestar/SKILL.md`](skills/lodestar/SKILL.md).
 
 ## Architecture
 
 | Dir | Description |
 |-----|-------------|
-| `skills/lodestar/` | The skill. `SKILL.md` is the entry; `references/` holds the deep playbook, ontology, skill bridge, grounding, pointer snippet, and file templates. Self-contained — never links outside its own folder. |
+| `skills/lodestar/` | The skill. `SKILL.md` is the entry; `references/` holds the playbook, grounding, ontology, pointer snippet, and templates. Self-contained. |
+| `hooks/` | Shared Claude Code / Codex lifecycle hook scripts and `hooks.json`. Hooks read `.lodestar/` and inject reminders; they do not rewrite project files. |
 | `.claude-plugin/` | `marketplace.json` so Claude Code can install it as a plugin. |
-| `.github/workflows/ci.yml` | Release smoke tests for Linux/macOS. |
-| `bin/lodestar` | CLI: `init` a project's `.memory/`, `status`, `install`. |
-| `install.sh` | Dual-target installer (Claude Code + Codex), symlink by default. |
+| `.codex-plugin/` | `plugin.json` so Codex can load skills and bundled hooks as a plugin. |
+| `docs/` | Bilingual user-facing rationale, design, output-path, effectiveness, and open-source operating notes. |
+| `bin/lodestar` | CLI: `init`, `status`, `hooks`, `install`. |
+| `install.sh` | Dual-target skill installer (Claude Code + Codex), symlink by default. |
+| `CONTRIBUTING.md` / `CODE_OF_CONDUCT.md` | Public community guidance for GitHub users and contributors. |
 
-## Self-containment
+## Self-Containment
 
-The skill is distributed and consumed independently — the `skills/lodestar/` folder may be
-copied into another project or loaded standalone. Therefore `SKILL.md` and its `references/`
-**never require files outside the skill's own directory**. Repo-level docs and helper scripts
-(this file, README, `bin/lodestar`, `install.sh`) are for maintainers and convenience installs;
-the skill must still explain a complete manual bootstrap path on its own.
+The skill is distributed and consumed independently. `SKILL.md` and its `references/` must never
+require files outside `skills/lodestar/`. Repo-level docs, hooks, and helper scripts are for
+packaging and convenience; the skill must still explain a complete manual bootstrap path on its own.
 
 ## Conventions
 
-- **No runtime, no build step.** Do not add a code dependency to the skill itself; its value is
-  the protocol. `bin/lodestar` and `install.sh` are plain bash scripts for convenience only.
-- **Memory budgets** are character counts: `working.md` ≤ 64K, `consolidated.md` ≤ 128K. Keep
-  them in sync between `SKILL.md`, the templates, and `bin/lodestar`.
-- **The project pointer block** (the `<!-- LODESTAR:START -->…<!-- LODESTAR:END -->` snippet in
-  `references/project-pointer.md`) is the single source for what gets injected into a project's
-  CLAUDE.md / AGENTS.md. Edit it there; `bin/lodestar init` reads it.
+- **Use only `.lodestar/` for Lodestar state.** Do not add alternate state namespaces.
+- **No runtime dependency in the skill.** Bash scripts are repo conveniences; keep the protocol
+  markdown-first.
+- **Budgets** are character counts: `.lodestar/log.md` ≤ 64K, `.lodestar/state.md` ≤ 128K.
+  Keep these in sync between `SKILL.md`, templates, and `bin/lodestar`.
+- **The project pointer block** in `references/project-pointer.md` is the single source for what
+  `bin/lodestar init` injects into CLAUDE.md / AGENTS.md.
+- **Hooks are opt-in.** They may inject context/reminders, but must not auto-summarize private
+  content or rewrite project files.
+- **Light DDD only.** Domain modeling means shared language, contexts, objects, capabilities, and
+  scenarios; do not introduce heavy DDD ceremony unless the user's project actually needs it.
+- **README is an onboarding surface.** Put deeper philosophy and design rationale in `docs/`, then
+  link it from README.
 - **Cross-platform tool names.** `SKILL.md` describes file operations generically so it reads
-  correctly under Claude Code (Read/Write/Edit), Codex (`apply_patch`), and others.
+  correctly under Claude Code, Codex, and other runtimes.
 
 ## Releasing
 
-1. Bump `VERSION`, `CHANGELOG.md`, `version` in `.claude-plugin/marketplace.json`, and this file together.
-2. Keep README install instructions accurate for both runtimes.
-3. Run `tests/lodestar_cli_test.sh` and `git diff --check`.
-4. Commit all changes together before tagging `v<version>`.
+1. Bump `VERSION`, `.claude-plugin/marketplace.json`, `.codex-plugin/plugin.json`, and this file.
+2. Keep README install and hook instructions accurate for both runtimes.
+3. Commit all changes together before tagging.

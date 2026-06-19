@@ -1,0 +1,48 @@
+{
+  "version": "0.1.0",
+  "principle": "Measure whether recorded orientation changes the next action, not how much was stored.",
+  "arms": {
+    "A": "bare: AGENTS.md + TODO.md",
+    "B": "lodestar: filled .lodestar/{anchor,domain,state}.md + hooks + drift check",
+    "C": "placebo: FOCUS.md with B's goal text padded to equal token volume, no structure/loop"
+  },
+  "fairness_rules": [
+    "All arms receive the same goal information; only the mechanism differs.",
+    "done-when is owned by the experimenter and identical across arms.",
+    "The judge never reads .lodestar/ or FOCUS.md; transcripts are scrubbed and arm-blind.",
+    "Compute a metric whenever the done-when can be a shell assertion; judge only the rest."
+  ],
+  "objective_metrics": {
+    "done_when_passed": "boolean from tasks/<task>/done_when.sh exit code",
+    "iterations_to_done": "first iteration index where done_when passed, else null",
+    "waste_files": "count of changed/created files outside the task's relevant set",
+    "unrecovered_drift": "tangent artifact present AND done-when unmet",
+    "decision_violation": "output contradicts a planted prior decision (string/behavior check)",
+    "tokens": "from agent run logs",
+    "elapsed": "wall-clock seconds",
+    "tool_calls": "from agent run logs"
+  },
+  "subjective_metrics_0_3": {
+    "drift_recovery": "parked/declined/returned from tangents vs silently drifted",
+    "decision_reuse": "reused a recorded decision vs re-litigated it",
+    "domain_consistency": "terms, boundaries, objects stayed consistent",
+    "handoff_quality": "correct continuation after compaction/subagent reset",
+    "output_quality": "final deliverable matches the external done-when"
+  },
+  "judging": { "judges": 3, "aggregate": "median", "blind_to_arm": true, "cross_model": "recommended" },
+  "statistics": { "min_seeds_per_cell": 5, "report": "mean+stdev", "deltas": ["B-A", "B-C"], "test": "paired sign test or bootstrap CI" },
+  "preregistered_direction": {
+    "release-prep-loop": "B>C>A",
+    "requirement-change": "B>C>=A",
+    "interrupt-barrage": "B>C>A",
+    "compaction-continue": "B>A",
+    "subagent-handoff": "B>A",
+    "quick-fix": "B<=A (overhead; tie or small loss expected)"
+  },
+  "falsification": [
+    "B≈A on drift_recovery/iterations_to_done",
+    "B≈C on any headline metric",
+    "B token/time cost not repaid by higher pass@K on long tasks",
+    "B loses the hostile quick-fix task by more than a small margin"
+  ]
+}

@@ -1,13 +1,21 @@
 #!/usr/bin/env bash
-# lodestar — bootstrap and inspect the Lodestar memory system in a project.
+# lodestar — bootstrap and inspect the Lodestar project anchor system.
 #
 # Commands:
-#   lodestar init [dir]      Create .memory/ (from templates) and wire CLAUDE.md + AGENTS.md.
-#   lodestar status [dir]    Show memory file sizes vs budgets and the current ANCHOR goal.
-#   lodestar install [...]   Install the skill to Claude Code / Codex (delegates to install.sh).
+#   lodestar init [dir] [--profile minimal|full] [--hooks none|claude|codex|both]
+#       Create .lodestar/ from templates and wire CLAUDE.md + AGENTS.md.
 #
-# `dir` defaults to the current directory. init is idempotent: it never overwrites an existing
-# .memory/ file and inserts the project pointer only once (guarded by LODESTAR markers).
+#   lodestar status [dir]
+#       Show .lodestar file sizes, current anchor, and hook status.
+#
+#   lodestar hooks install|status|uninstall [dir] [--target claude|codex|both] [--scope project|user]
+#       Manage opt-in lifecycle hook configs. Project scope is the default.
+#
+#   lodestar install [...]
+#       Install the skill to Claude Code / Codex (delegates to install.sh).
+#
+# `dir` defaults to the current directory. init is idempotent: it never overwrites existing
+# .lodestar/ state files and inserts the project pointer only once (guarded by LODESTAR markers).
 
 set -euo pipefail
 
@@ -15,9 +23,16 @@ REPO_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 SKILL_DIR="$REPO_DIR/skills/lodestar"
 TPL_DIR="$SKILL_DIR/references/templates"
 POINTER_FILE="$SKILL_DIR/references/project-pointer.md"
+HOOK_RUNNER="$REPO_DIR/hooks/run-hook.cmd"
 
-WORKING_BUDGET=65536
-CONSOLIDATED_BUDGET=131072
+LOG_BUDGET=65536
+STATE_BUDGET=131072
+HOOK_MARKER="LODESTAR_HOOK_MANAGED=1"
+
+die() {
+  echo "error: $*" >&2
+  exit 1
+}
 
 extract_pointer() {
   # Pull the block between the LODESTAR markers out of project-pointer.md.
@@ -37,45 +52,62 @@ render_template() {
   done < "$template"
 }
 
-ensure_memory_gitignore() {
+json_escape() {
+  local s="$1"
+  s="${s//\\/\\\\}"
+  s="${s//\"/\\\"}"
+  s="${s//$'\n'/\\n}"
+  s="${s//$'\r'/\\r}"
+  s="${s//$'\t'/\\t}"
+  printf '%s' "$s"
+}
+
+shell_quote() {
+  local s="$1"
+  printf "'%s'" "${s//\'/\'\\\'\'}"
+}
+
+ensure_lodestar_gitignore() {
   local dir="$1" gitignore="$dir/.gitignore" last_char=""
   touch "$gitignore"
-  if grep -Fxq '.memory/' "$gitignore"; then
-    echo "  · .memory/ already private in .gitignore"
+  if grep -Fxq '.lodestar/' "$gitignore"; then
+    echo "  · .lodestar/ already private in .gitignore"
     return
   fi
   if [ -s "$gitignore" ]; then
     last_char="$(tail -c 1 "$gitignore" 2>/dev/null || true)"
     [ -n "$last_char" ] && printf '\n' >> "$gitignore"
   fi
-  printf '.memory/\n' >> "$gitignore"
-  echo "  ✓ marked .memory/ private in .gitignore"
+  printf '.lodestar/\n' >> "$gitignore"
+  echo "  ✓ marked .lodestar/ private in .gitignore"
 }
 
-cmd_init() {
-  local dir="${1:-.}"
-  dir="$(cd "$dir" && pwd)"
-  local project; project="$(basename "$dir")"
-  local mem="$dir/.memory"
+create_state_files() {
+  local dir="$1" profile="$2" project="$3" state_dir="$dir/.lodestar"
+  local template_dir="$TPL_DIR/$profile"
 
-  mkdir -p "$mem/archive"
+  [ -d "$template_dir" ] || die "unknown profile: $profile"
+  mkdir -p "$state_dir/archive"
 
-  for f in working consolidated; do
-    local target="$mem/$f.md"
+  local f target template
+  for f in anchor domain state log; do
+    target="$state_dir/$f.md"
+    template="$template_dir/$f.md"
+    [ -f "$template" ] || die "missing template: $template"
     if [ -e "$target" ]; then
       echo "  · kept existing $target"
     else
-      render_template "$TPL_DIR/$f.md" "$project" > "$target"
+      render_template "$template" "$project" > "$target"
       echo "  ✓ created $target"
     fi
   done
+}
 
-  ensure_memory_gitignore "$dir"
-
-  # Wire the project pointer into CLAUDE.md and AGENTS.md (idempotent).
-  local block; block="$(extract_pointer)"
+wire_pointer() {
+  local dir="$1" block path doc
+  block="$(extract_pointer)"
   for doc in CLAUDE.md AGENTS.md; do
-    local path="$dir/$doc"
+    path="$dir/$doc"
     if [ -f "$path" ] && grep -q 'LODESTAR:START' "$path"; then
       echo "  · $doc already wired"
       continue
@@ -86,10 +118,70 @@ cmd_init() {
     } >> "$path"
     echo "  ✓ wired Lodestar pointer into $doc"
   done
+}
+
+parse_dir_profile_hooks() {
+  PARSED_DIR="."
+  PARSED_PROFILE="minimal"
+  PARSED_HOOKS="none"
+  local saw_dir=0
+  while [ "$#" -gt 0 ]; do
+    case "$1" in
+      --profile)
+        [ "$#" -ge 2 ] || die "--profile requires minimal or full"
+        PARSED_PROFILE="$2"
+        shift 2
+        ;;
+      --profile=*)
+        PARSED_PROFILE="${1#--profile=}"
+        shift
+        ;;
+      --hooks)
+        [ "$#" -ge 2 ] || die "--hooks requires none, claude, codex, or both"
+        PARSED_HOOKS="$2"
+        shift 2
+        ;;
+      --hooks=*)
+        PARSED_HOOKS="${1#--hooks=}"
+        shift
+        ;;
+      -*)
+        die "unknown init option: $1"
+        ;;
+      *)
+        [ "$saw_dir" -eq 0 ] || die "init accepts only one directory"
+        PARSED_DIR="$1"
+        saw_dir=1
+        shift
+        ;;
+    esac
+  done
+
+  case "$PARSED_PROFILE" in minimal|full) ;; *) die "--profile must be minimal or full" ;; esac
+  case "$PARSED_HOOKS" in none|claude|codex|both) ;; *) die "--hooks must be none, claude, codex, or both" ;; esac
+}
+
+cmd_init() {
+  parse_dir_profile_hooks "$@"
+  local dir="$PARSED_DIR" profile="$PARSED_PROFILE" hooks="$PARSED_HOOKS"
+  mkdir -p "$dir"
+  dir="$(cd "$dir" && pwd)"
+  local project; project="$(basename "$dir")"
+
+  create_state_files "$dir" "$profile" "$project"
+  ensure_lodestar_gitignore "$dir"
+  wire_pointer "$dir"
+
+  if [ "$hooks" != "none" ]; then
+    install_hooks "$dir" "$hooks" "project"
+  fi
 
   echo ""
   echo "Lodestar initialized in $dir"
-  echo "Next: open .memory/working.md and fill the ⚓ ANCHOR Goal / Done-when / Boundaries."
+  echo "Next: fill .lodestar/anchor.md (Mode / Goal / Done-when / Boundaries / Next action)."
+  if [ "$hooks" = "codex" ] || [ "$hooks" = "both" ]; then
+    echo "Codex hook note: review and trust new hooks with /hooks before expecting them to run."
+  fi
 }
 
 char_count() {
@@ -100,40 +192,288 @@ char_count() {
   fi
 }
 
+print_size() {
+  local label="$1" path="$2" budget="$3"
+  if [ -f "$path" ]; then
+    local n pct
+    n="$(char_count "$path")"
+    pct=$(( n * 100 / budget ))
+    printf '  %-12s %8s / %-8s chars (%d%%)' "$label" "$n" "$budget" "$pct"
+    [ "$n" -gt "$budget" ] && printf '  over budget - consolidate'
+    printf '\n'
+  else
+    printf '  %-12s missing\n' "$label"
+  fi
+}
+
+hook_status_line() {
+  local label="$1" path="$2"
+  if [ -f "$path" ] && grep -Fq "$HOOK_MARKER" "$path"; then
+    printf '  %-12s configured (%s)\n' "$label" "$path"
+  elif [ -f "$path" ]; then
+    printf '  %-12s existing non-Lodestar config (%s)\n' "$label" "$path"
+  else
+    printf '  %-12s not configured\n' "$label"
+  fi
+}
+
 cmd_status() {
   local dir="${1:-.}"
+  [ "${2:-}" = "" ] || die "status accepts at most one directory"
   dir="$(cd "$dir" && pwd)"
-  local mem="$dir/.memory"
-  if [ ! -d "$mem" ]; then
-    echo "no .memory/ in $dir — run: lodestar init \"$dir\""
+  local state_dir="$dir/.lodestar"
+
+  if [ ! -d "$state_dir" ]; then
+    echo "no .lodestar/ in $dir - run: lodestar init \"$dir\""
     exit 1
   fi
-  echo "Lodestar status — $dir"
-  for pair in "working.md:$WORKING_BUDGET" "consolidated.md:$CONSOLIDATED_BUDGET"; do
-    local f="${pair%%:*}" budget="${pair##*:}"
-    local p="$mem/$f"
-    if [ -f "$p" ]; then
-      local n; n="$(char_count "$p")"
-      local pct=$(( n * 100 / budget ))
-      printf '  %-16s %8s / %-8s chars (%d%%)' "$f" "$n" "$budget" "$pct"
-      [ "$n" -gt "$budget" ] && printf '  ⚠ over budget — consolidate (Protocol 3)'
-      printf '\n'
-    else
-      printf '  %-16s missing\n' "$f"
-    fi
-  done
+
+  echo "Lodestar status - $dir"
+  print_size "log.md" "$state_dir/log.md" "$LOG_BUDGET"
+  print_size "state.md" "$state_dir/state.md" "$STATE_BUDGET"
+  [ -f "$state_dir/anchor.md" ] || printf '  %-12s missing\n' "anchor.md"
+  [ -f "$state_dir/domain.md" ] || printf '  %-12s missing\n' "domain.md"
+
   echo ""
-  echo "  ⚓ ANCHOR:"
-  awk '/## ⚓ ANCHOR/{f=1} f{print "    "$0} /^---$/{if(f)exit}' "$mem/working.md" 2>/dev/null \
-    | grep -E 'Mode|Goal|Done-when|Boundaries|Return-stack|Drift' || echo "    (no anchor block found)"
+  echo "  Anchor:"
+  sed -n '1,/^---$/p' "$state_dir/anchor.md" 2>/dev/null \
+    | grep -E 'Mode|Goal|Done-when|Boundaries|Next action|Return-stack|Drift' \
+    | sed 's/^/    /' || echo "    (no anchor block found)"
+
+  echo ""
+  echo "  Hooks:"
+  hook_status_line "Codex" "$dir/.codex/hooks.json"
+  hook_status_line "Claude" "$dir/.claude/settings.json"
+  echo "  note        Codex non-managed hooks require /hooks trust after install or change"
+}
+
+print_hooks_json() {
+  local runner="$1" session_cmd pretool_cmd precompact_cmd subagent_cmd stop_cmd subagent_stop_cmd
+  session_cmd="$(json_escape "$HOOK_MARKER $(shell_quote "$runner") session-start")"
+  pretool_cmd="$(json_escape "$HOOK_MARKER $(shell_quote "$runner") pre-tool-use")"
+  precompact_cmd="$(json_escape "$HOOK_MARKER $(shell_quote "$runner") pre-compact")"
+  subagent_cmd="$(json_escape "$HOOK_MARKER $(shell_quote "$runner") subagent-start")"
+  subagent_stop_cmd="$(json_escape "$HOOK_MARKER $(shell_quote "$runner") subagent-stop")"
+  stop_cmd="$(json_escape "$HOOK_MARKER $(shell_quote "$runner") stop")"
+
+  cat <<EOF
+{
+  "hooks": {
+    "SessionStart": [
+      {
+        "matcher": "startup|resume|clear|compact",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "$session_cmd",
+            "statusMessage": "Loading Lodestar anchor"
+          }
+        ]
+      }
+    ],
+    "PreToolUse": [
+      {
+        "matcher": "Bash|apply_patch|Edit|Write",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "$pretool_cmd",
+            "statusMessage": "Checking Lodestar alignment"
+          }
+        ]
+      }
+    ],
+    "PreCompact": [
+      {
+        "matcher": "manual|auto",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "$precompact_cmd",
+            "statusMessage": "Preparing Lodestar handoff"
+          }
+        ]
+      }
+    ],
+    "SubagentStart": [
+      {
+        "matcher": ".*",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "$subagent_cmd",
+            "statusMessage": "Passing Lodestar handoff to subagent"
+          }
+        ]
+      }
+    ],
+    "SubagentStop": [
+      {
+        "matcher": ".*",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "$subagent_stop_cmd",
+            "statusMessage": "Capturing Lodestar subagent return"
+          }
+        ]
+      }
+    ],
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "$stop_cmd",
+            "statusMessage": "Checking Lodestar handoff"
+          }
+        ]
+      }
+    ]
+  }
+}
+EOF
+}
+
+print_claude_settings_json() {
+  local runner="$1"
+  print_hooks_json "$runner"
+}
+
+write_managed_hook_file() {
+  local path="$1" runtime="$2" runner="$3"
+  if [ -f "$path" ] && ! grep -Fq "$HOOK_MARKER" "$path"; then
+    die "$runtime hook config already exists at $path and is not managed by Lodestar; merge manually or remove it first"
+  fi
+  mkdir -p "$(dirname "$path")"
+  if [ "$runtime" = "Claude" ]; then
+    print_claude_settings_json "$runner" > "$path"
+  else
+    print_hooks_json "$runner" > "$path"
+  fi
+  echo "  ✓ $runtime hooks configured at $path"
+}
+
+remove_managed_hook_file() {
+  local path="$1" runtime="$2"
+  if [ -f "$path" ] && grep -Fq "$HOOK_MARKER" "$path"; then
+    rm -f "$path"
+    echo "  ✓ $runtime hooks removed from $path"
+  elif [ -f "$path" ]; then
+    echo "  · $runtime hooks left untouched (non-Lodestar config at $path)"
+  else
+    echo "  · $runtime hooks not configured"
+  fi
+}
+
+install_hooks() {
+  local dir="$1" target="$2" scope="$3" base runner
+  case "$target" in claude|codex|both) ;; *) die "--target/--hooks must be claude, codex, or both" ;; esac
+  case "$scope" in project|user) ;; *) die "--scope must be project or user" ;; esac
+  [ -x "$HOOK_RUNNER" ] || die "hook runner missing or not executable: $HOOK_RUNNER"
+
+  if [ "$scope" = "project" ]; then
+    base="$dir"
+  else
+    base="$HOME"
+  fi
+  runner="$HOOK_RUNNER"
+
+  echo "Lodestar hooks install (target: $target, scope: $scope)"
+  if [ "$target" = "codex" ] || [ "$target" = "both" ]; then
+    write_managed_hook_file "$base/.codex/hooks.json" "Codex" "$runner"
+  fi
+  if [ "$target" = "claude" ] || [ "$target" = "both" ]; then
+    write_managed_hook_file "$base/.claude/settings.json" "Claude" "$runner"
+  fi
+}
+
+uninstall_hooks() {
+  local dir="$1" target="$2" scope="$3" base
+  case "$target" in claude|codex|both) ;; *) die "--target must be claude, codex, or both" ;; esac
+  case "$scope" in project|user) ;; *) die "--scope must be project or user" ;; esac
+  if [ "$scope" = "project" ]; then base="$dir"; else base="$HOME"; fi
+  echo "Lodestar hooks uninstall (target: $target, scope: $scope)"
+  if [ "$target" = "codex" ] || [ "$target" = "both" ]; then
+    remove_managed_hook_file "$base/.codex/hooks.json" "Codex"
+  fi
+  if [ "$target" = "claude" ] || [ "$target" = "both" ]; then
+    remove_managed_hook_file "$base/.claude/settings.json" "Claude"
+  fi
+}
+
+parse_hooks_args() {
+  PARSED_HOOK_DIR="."
+  PARSED_HOOK_TARGET="both"
+  PARSED_HOOK_SCOPE="project"
+  local saw_dir=0
+  while [ "$#" -gt 0 ]; do
+    case "$1" in
+      --target)
+        [ "$#" -ge 2 ] || die "--target requires claude, codex, or both"
+        PARSED_HOOK_TARGET="$2"
+        shift 2
+        ;;
+      --target=*)
+        PARSED_HOOK_TARGET="${1#--target=}"
+        shift
+        ;;
+      --scope)
+        [ "$#" -ge 2 ] || die "--scope requires project or user"
+        PARSED_HOOK_SCOPE="$2"
+        shift 2
+        ;;
+      --scope=*)
+        PARSED_HOOK_SCOPE="${1#--scope=}"
+        shift
+        ;;
+      -*)
+        die "unknown hooks option: $1"
+        ;;
+      *)
+        [ "$saw_dir" -eq 0 ] || die "hooks accepts only one directory"
+        PARSED_HOOK_DIR="$1"
+        saw_dir=1
+        shift
+        ;;
+    esac
+  done
+  case "$PARSED_HOOK_TARGET" in claude|codex|both) ;; *) die "--target must be claude, codex, or both" ;; esac
+  case "$PARSED_HOOK_SCOPE" in project|user) ;; *) die "--scope must be project or user" ;; esac
+}
+
+cmd_hooks() {
+  local action="${1:-}"
+  [ -n "$action" ] || die "hooks requires install, status, or uninstall"
+  shift || true
+  parse_hooks_args "$@"
+  local dir="$PARSED_HOOK_DIR"
+  dir="$(cd "$dir" && pwd)"
+
+  case "$action" in
+    install) install_hooks "$dir" "$PARSED_HOOK_TARGET" "$PARSED_HOOK_SCOPE" ;;
+    uninstall) uninstall_hooks "$dir" "$PARSED_HOOK_TARGET" "$PARSED_HOOK_SCOPE" ;;
+    status)
+      if [ "$PARSED_HOOK_SCOPE" = "project" ]; then
+        hook_status_line "Codex" "$dir/.codex/hooks.json"
+        hook_status_line "Claude" "$dir/.claude/settings.json"
+      else
+        hook_status_line "Codex" "$HOME/.codex/hooks.json"
+        hook_status_line "Claude" "$HOME/.claude/settings.json"
+      fi
+      echo "  note        Codex non-managed hooks require /hooks trust after install or change"
+      ;;
+    *) die "hooks action must be install, status, or uninstall" ;;
+  esac
 }
 
 cmd_install() { exec "$REPO_DIR/install.sh" "$@"; }
 
 case "${1:-}" in
-  init)    shift; cmd_init "$@" ;;
-  status)  shift; cmd_status "$@" ;;
-  install) shift; cmd_install "$@" ;;
-  -h|--help|"") grep '^#' "$0" | grep -v '^#!' | sed 's/^# \{0,1\}//' ;;
-  *) echo "unknown command: $1" >&2; echo "try: lodestar --help" >&2; exit 2 ;;
+  init)           shift; cmd_init "$@" ;;
+  status)         shift; cmd_status "$@" ;;
+  hooks)          shift; cmd_hooks "$@" ;;
+  install)        shift; cmd_install "$@" ;;
+  -h|--help|"")   grep '^#' "$0" | grep -v '^#!' | sed 's/^# \{0,1\}//' ;;
+  *)              echo "unknown command: $1" >&2; echo "try: lodestar --help" >&2; exit 2 ;;
 esac

@@ -21,6 +21,14 @@ jobs:
         run: |
           bash -n install.sh
           bash -n bin/lodestar
+          bash -n hooks/lib.sh
+          bash -n hooks/session-start
+          bash -n hooks/pre-tool-use
+          bash -n hooks/pre-compact
+          bash -n hooks/subagent-start
+          bash -n hooks/subagent-stop
+          bash -n hooks/stop
+          bash -n hooks/run-hook.cmd
           bash -n tests/lodestar_cli_test.sh
 
       - name: CLI and installer smoke tests

@@ -1,6 +1,6 @@
 # Project Pointer Snippet
 
-To make Lodestar authoritative in a project, add this block to the project's `CLAUDE.md`
+To make Lodestar visible in a project, add this block to the project's `CLAUDE.md`
 (Claude Code) **and** `AGENTS.md` (Codex / generic agents). The markers make insertion
 idempotent when an installer or agent applies the snippet repeatedly.
 
@@ -8,28 +8,28 @@ Copy verbatim (between the markers):
 
 ```markdown
 <!-- LODESTAR:START -->
-## 记忆系统优先（最高优先级 / highest priority）
+## Lodestar Project Anchor (project goal orientation)
 
-This project uses the **Lodestar** memory system as the single source of truth for
-**Mode / 目标 / 现状 / GAP / Decision** (mode / goal / current state / gap / decision) and for
-staying anchored across long sessions.
+This project uses **Lodestar** as its project-level orientation layer. Lodestar state lives in
+`.lodestar/`.
 
-1. **At session start, read** `.memory/consolidated.md` (ABSTRACT header first, then current
-   state + trend log), then `.memory/working.md` (the **⚓ ANCHOR block first**). Treat these as
-   the authoritative Blueprint / Mode / Goal / State / GAP / Decision Log.
-2. **On conflict with this file or generic agent memory, Lodestar wins.** Generic memory is
-   demoted to environmental convention; it does not adjudicate goals or GAPs.
-3. **On every user directive**, record it at the source into `.memory/working.md` per Lodestar
-   Protocol 2. Do not record secrets, credentials, tokens, personal data, private URLs, or
-   customer data verbatim; use `[REDACTED:<kind>]` plus `redacted-summary` instead. When
-   `working.md` exceeds its budget, consolidate per Protocol 3. For GAPs, cite evidence or mark
-   `evidence: missing`; for path choices, record a `DEC-...` decision id.
-4. **In long conversations, run the drift check** (Protocol 0): if the thread no longer serves
-   the active 目标, surface it and re-anchor — don't silently follow the tangent.
-5. **When using task skills** (debugging, TDD, review, superpowers, etc.), use Lodestar as the
+1. **At session start, read** `.lodestar/anchor.md` first, then `.lodestar/domain.md`, then
+   `.lodestar/state.md`. Read `.lodestar/log.md` only for recent context when needed.
+2. **For project goals, current state, domain language, GAPs, decisions, and next actions,
+   prefer Lodestar** over generic CLAUDE.md / AGENTS.md guidance. Generic guidance remains
+   environmental convention.
+3. **Do not write secrets or private data verbatim** into Lodestar state. Use
+   `[REDACTED:<kind>]` and `redacted-summary` when recording sensitive directives.
+4. **Record only meaningful changes**: goal, done-when, boundary, domain language, state,
+   evidence, GAP, decision, action, or handoff. Do not turn `.lodestar/log.md` into a transcript.
+5. **Run the drift check** before non-trivial work: if the action no longer serves the active
+   Goal / Done-when, surface the mismatch and either park the tangent or re-anchor.
+6. **Use light domain modeling** when goals or actions are fuzzy: clarify terms, bounded
+   contexts, core objects, capabilities, scenarios, and open questions in `.lodestar/domain.md`.
+7. **When using task skills** (debugging, TDD, review, superpowers, etc.), use Lodestar as the
    orientation layer: name which Goal/GAP the skill serves before execution, then record State,
-   Decision, and GAP updates afterward.
-6. Skill details: invoke the `lodestar` skill.
+   Decision, Domain, and GAP updates afterward.
+8. Skill details: invoke the `lodestar` skill.
 <!-- LODESTAR:END -->
 ```
 

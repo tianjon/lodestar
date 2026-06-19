@@ -1,46 +1,45 @@
 # Lodestar
 
-**Portable goal-orientation + anti-drift system for AI coding agents.** Works on **Claude Code**
-and **Codex**, in **any repository**, with **zero runtime dependencies** (pure markdown +
-protocols the agent executes).
+[![CI](https://github.com/tianjon/lodestar/actions/workflows/ci.yml/badge.svg)](https://github.com/tianjon/lodestar/actions/workflows/ci.yml)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
-> A *lodestar* is the star you steer by. This skill is that star for a working session: one
-> durable source of truth for **what we're building, where we are, and the gap between them** —
-> plus an always-on loop that turns conversation into clearer goals and better next actions.
+**A project anchor for AI coding agents.** Lodestar keeps Claude Code and Codex aligned with the
+current goal, domain language, open gaps, decisions, and next action.
 
-## Why
+AI agents are good at continuing the latest thread. Long projects need something slightly
+different: a durable project-level orientation layer that keeps asking, "What are we trying to
+finish, what is true now, and what should happen next?"
 
-Long conversations wander. You circle a topic, chase tangents, and after enough turns the agent
-is optimizing for the *latest* message instead of the actual goal — it gets pulled off course
-without anyone noticing. Lodestar fixes that three ways:
+## What Lodestar Does
 
-1. **Durable memory** — the project's Blueprint / Goal / State / GAP lives in `.memory/`, not in
-   a context window that decays. It survives across sessions and across runtimes.
-2. **Anti-drift anchor** — a pinned `⚓ ANCHOR` block plus a cheap **drift check** the agent runs
-   in long sessions. When the thread stops serving the active goal, the agent *names the drift*
-   and offers to park it or re-anchor — instead of silently following the tangent.
-3. **Reasoning ledger** — GAPs carry assumptions, evidence, confidence, decisions, and next
-   actions, so the agent can show how a conversation changed the work.
+- Creates a project-local `.lodestar/` state folder with `anchor.md`, `domain.md`, `state.md`,
+  and `log.md`.
+- Adds a small pointer to `CLAUDE.md` and `AGENTS.md` so future sessions know where the project
+  anchor lives.
+- Optionally installs Claude Code / Codex hooks to load the anchor at session start, run a light
+  drift check before risky actions, and pass handoffs to subagents.
+- Uses light DDD to turn fuzzy goals into shared terms, bounded contexts, core objects,
+  capabilities, scenarios, and open questions.
 
-## What's inside
+## When To Use It
 
-| Concept | What it is |
-|---|---|
-| **Four Facets** | 蓝图 Blueprint · 目标 Goal · 现状 State · GAP — one control loop, not four notes |
-| **Mode switch** | explore · clarify · decide · execute · review — different drift rules for different cognitive regimes |
-| **Reasoning ledger** | assumptions · evidence · confidence · decision ids · next actions |
-| **Two-tier memory** | fast episodic `working.md` (≤64K) → slow semantic `consolidated.md` (≤128K) |
-| **Protocol 0** | Anchor & anti-drift — the headline loop |
-| **Protocols 1–5** | Read · Record-at-source · Consolidate · GAP engine · Skill bridge |
-| **GAP engine** | every gap carries `要求` (want) vs `实践` (practice) vs `证据` (evidence) vs `突破解` (third path) |
-| **Skill bridge** | lets Lodestar support task skills like superpowers without replacing them |
+Use Lodestar when:
 
-The design is grounded in Complementary Learning Systems, MemGPT, Generative Agents, Event
-Sourcing, Perceptual Control Theory, Active Inference, mode switching, evidence-backed reasoning,
-and TRIZ — see
-[`skills/lodestar/references/cognitive-grounding.md`](skills/lodestar/references/cognitive-grounding.md).
+- a project spans multiple sessions;
+- goals shift while you are working;
+- subagents or task skills need a compact handoff;
+- you want the agent to optimize for the project goal, not the latest tangent;
+- decisions and gaps need to remain visible over time.
 
-## Install
+Skip Lodestar when:
+
+- the task is one short command or a single answer;
+- the goal is already obvious and will finish in one session;
+- you do not want project-local agent state.
+
+## Quick Start
+
+Install the skill:
 
 ```bash
 git clone https://github.com/tianjon/lodestar.git ~/.lodestar
@@ -48,85 +47,140 @@ cd ~/.lodestar
 ./install.sh
 ```
 
-`install.sh` symlinks `skills/lodestar` into `~/.claude/skills/` and, when Codex is present,
-`~/.codex/skills/`, so both runtimes pick it up and updates stay in sync. Flags: `--copy`
-(detach from repo), `--claude` / `--codex` (one target), `--uninstall`, `--force` (replace an
-existing unmanaged install).
+Initialize a project:
+
+```bash
+cd /path/to/your/project
+~/.lodestar/bin/lodestar init
+```
+
+Fill the anchor:
+
+```text
+.lodestar/anchor.md
+```
+
+Start with one sentence for `Goal`, an observable `Done-when`, clear `Boundaries`, and one
+`Next action`.
+
+Check status:
+
+```bash
+~/.lodestar/bin/lodestar status
+```
+
+Optional hooks:
+
+```bash
+~/.lodestar/bin/lodestar init --hooks both
+~/.lodestar/bin/lodestar hooks status
+```
+
+Codex hook note: review and trust configured hooks with `/hooks` before expecting them to run.
+
+## Install Options
+
+Default install links the skill into Claude Code and Codex locations:
+
+```bash
+./install.sh
+```
 
 Pinned release install:
 
 ```bash
-git clone --branch v1.1.0 --depth 1 https://github.com/tianjon/lodestar.git ~/.lodestar
+git clone --branch v1.2.0 --depth 1 https://github.com/tianjon/lodestar.git ~/.lodestar
 cd ~/.lodestar
 ./install.sh --copy
 ```
 
-### Claude Code (as a plugin marketplace)
+Runtime-specific installs:
 
-Alternatively, install it as a plugin so it shows up under `/plugin`:
-
+```bash
+./install.sh --claude
+./install.sh --codex
+./install.sh --copy
+./install.sh --uninstall
 ```
+
+Claude Code plugin install:
+
+```text
 /plugin marketplace add tianjon/lodestar
 /plugin install lodestar@lodestar
 ```
 
-### Codex
+## Project State Layout
 
-`install.sh` drops the skill into `~/.codex/skills/lodestar`, the same `SKILL.md` Codex loads
-natively. Nothing else required.
+```text
+.lodestar/
+├── anchor.md   # Mode / Goal / Done-when / Boundaries / Next action
+├── domain.md   # light DDD map: language, contexts, objects, capabilities, scenarios
+├── state.md    # current facts, open gaps, decisions, evidence summaries
+├── log.md      # meaningful changes only, not a transcript
+└── archive/
+```
 
-## Use it in a project
+Profiles:
 
 ```bash
-~/.lodestar/bin/lodestar init          # in your project root
+~/.lodestar/bin/lodestar init --profile minimal
+~/.lodestar/bin/lodestar init --profile full
 ```
 
-This creates `.memory/{working,consolidated}.md` + `archive/` from templates and wires a
-"load Lodestar first" pointer into the project's `CLAUDE.md` **and** `AGENTS.md` (idempotent).
-It also adds `.memory/` to the project's `.gitignore` so raw working memory starts private.
-Then open `.memory/working.md` and fill the `⚓ ANCHOR` Goal / Done-when / Boundaries.
+## Why It Works
 
-From then on, any agent session in that project:
+Lodestar is not a general recall system. It is an orientation loop:
 
-- reads `.memory/` at start and treats it as authoritative for Mode / Goal / State / GAP / Decision;
-- records each of your directives **at the source** into `working.md`, with secrets and PII
-  redacted before they touch memory;
-- keeps Mode, evidence, Decision Log, and next actions explicit;
-- runs the **drift check** in long sessions and re-anchors when the thread wanders;
-- frames task skills (debugging, TDD, review, superpowers) against the active Goal/GAP;
-- consolidates `working.md` into `consolidated.md` when it outgrows its budget.
-
-Raw `.memory/` is local-private by default. If a team wants versioned project memory, review and
-redact it first, then remove the `.memory/` ignore rule deliberately.
-
-Inspect anytime:
-
-```bash
-~/.lodestar/bin/lodestar status        # sizes vs budgets + current anchor goal
+```text
+User directive
+-> domain parse
+-> goal / done-when / boundary
+-> gap
+-> decision
+-> next action
+-> output frame
+-> state update
 ```
 
-## Layout
+The practical effect is simple: the agent gets the current anchor before acting, checks whether
+the next action serves the goal, and leaves a better handoff for the next session.
 
-```
-lodestar/
-├── skills/lodestar/
-│   ├── SKILL.md                    # the skill (Claude Code + Codex)
-│   └── references/
-│       ├── anti-drift.md           # deep anchor / return-stack / drift playbook
-│       ├── cognitive-grounding.md  # why it's shaped this way
-│       ├── ontology.md             # core objects and invariants
-│       ├── skill-bridge.md         # using Lodestar below task skills
-│       ├── project-pointer.md      # the CLAUDE.md / AGENTS.md snippet
-│       └── templates/{working,consolidated}.md
-├── .claude-plugin/marketplace.json # Claude Code plugin manifest
-├── .github/workflows/ci.yml        # syntax + smoke tests on Linux/macOS
-├── install.sh                      # dual-target installer (Claude Code + Codex)
-├── bin/lodestar                    # init / status / install CLI
-├── VERSION                         # release version
-├── CHANGELOG.md                    # release notes
-├── AGENTS.md                       # repo guidance for agents
-└── README.md
-```
+## Documentation
+
+Start here if you want the philosophy and design rationale:
+
+- [Docs index](docs/README.md)
+- English:
+  [Why Lodestar exists](docs/en/why-lodestar.md),
+  [Design and architecture](docs/en/design.md),
+  [How Lodestar shapes output](docs/en/output-path.md),
+  [Why the approach is effective](docs/en/effectiveness.md),
+  [Open-source operating notes](docs/en/open-source.md)
+- 中文:
+  [中文文档入口](docs/zh/README.md)
+
+## Relationship To Other Tools
+
+- **Recall systems** help an agent find past information.
+- **Task skills** such as Superpowers help an agent execute a disciplined workflow.
+- **Lodestar** keeps a project oriented: goal, boundary, domain, gap, decision, next action.
+
+These layers can work together. Lodestar sits underneath task skills and asks what the work is
+for before the agent decides how to do it.
+
+## Safety And Privacy
+
+- `.lodestar/` is added to `.gitignore` by default.
+- Hooks are opt-in and reviewable.
+- Hook scripts read project state and inject context/reminders; they do not rewrite project files.
+- Do not store secrets, credentials, private keys, customer data, or private URLs in Lodestar
+  state.
+
+## Contributing
+
+Issues, ideas, and pull requests are welcome. See [CONTRIBUTING.md](CONTRIBUTING.md) and
+[CODE_OF_CONDUCT.md](CODE_OF_CONDUCT.md).
 
 ## License
 

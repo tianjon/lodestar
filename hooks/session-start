@@ -1,0 +1,10 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]:-$0}")" && pwd)"
+# shellcheck source=hooks/lib.sh
+source "$SCRIPT_DIR/lib.sh"
+
+root="$(project_root)"
+context="$(anchor_excerpt "$root")"
+emit_additional_context "SessionStart" "$context"

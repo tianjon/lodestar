@@ -1,0 +1,26 @@
+{
+  "name": "lodestar",
+  "version": "1.2.0",
+  "description": "Project-level goal-orientation, anti-drift, and lightweight domain-modeling system for Codex.",
+  "author": {
+    "name": "Lodestar"
+  },
+  "homepage": "https://github.com/tianjon/lodestar",
+  "repository": "https://github.com/tianjon/lodestar",
+  "license": "MIT",
+  "keywords": ["skills", "hooks", "anti-drift", "ddd", "goal-orientation", "project-state"],
+  "skills": "./skills/",
+  "hooks": "./hooks/hooks.json",
+  "interface": {
+    "displayName": "Lodestar",
+    "shortDescription": "Keep Codex anchored to project goals, domain language, and next actions.",
+    "longDescription": "Lodestar provides a project-local .lodestar/ anchor, lightweight domain map, GAP ledger, and opt-in lifecycle hooks for session start, tool use, compaction, subagents, and stop handoffs.",
+    "developerName": "Lodestar",
+    "category": "Developer Tools",
+    "capabilities": ["skills", "hooks"],
+    "defaultPrompt": [
+      "Use Lodestar to clarify this project's current goal and next action.",
+      "Use Lodestar to check whether we are drifting from the active goal."
+    ]
+  }
+}

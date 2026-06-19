@@ -1,0 +1,75 @@
+{
+  "hooks": {
+    "SessionStart": [
+      {
+        "matcher": "startup|resume|clear|compact",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "LODESTAR_HOOK_MANAGED=1 sh -c 'root=\"${PLUGIN_ROOT:-${CLAUDE_PLUGIN_ROOT:-}}\"; exec \"$root/hooks/run-hook.cmd\" session-start'",
+            "statusMessage": "Loading Lodestar anchor"
+          }
+        ]
+      }
+    ],
+    "PreToolUse": [
+      {
+        "matcher": "Bash|apply_patch|Edit|Write",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "LODESTAR_HOOK_MANAGED=1 sh -c 'root=\"${PLUGIN_ROOT:-${CLAUDE_PLUGIN_ROOT:-}}\"; exec \"$root/hooks/run-hook.cmd\" pre-tool-use'",
+            "statusMessage": "Checking Lodestar alignment"
+          }
+        ]
+      }
+    ],
+    "PreCompact": [
+      {
+        "matcher": "manual|auto",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "LODESTAR_HOOK_MANAGED=1 sh -c 'root=\"${PLUGIN_ROOT:-${CLAUDE_PLUGIN_ROOT:-}}\"; exec \"$root/hooks/run-hook.cmd\" pre-compact'",
+            "statusMessage": "Preparing Lodestar handoff"
+          }
+        ]
+      }
+    ],
+    "SubagentStart": [
+      {
+        "matcher": ".*",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "LODESTAR_HOOK_MANAGED=1 sh -c 'root=\"${PLUGIN_ROOT:-${CLAUDE_PLUGIN_ROOT:-}}\"; exec \"$root/hooks/run-hook.cmd\" subagent-start'",
+            "statusMessage": "Passing Lodestar handoff to subagent"
+          }
+        ]
+      }
+    ],
+    "SubagentStop": [
+      {
+        "matcher": ".*",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "LODESTAR_HOOK_MANAGED=1 sh -c 'root=\"${PLUGIN_ROOT:-${CLAUDE_PLUGIN_ROOT:-}}\"; exec \"$root/hooks/run-hook.cmd\" subagent-stop'",
+            "statusMessage": "Capturing Lodestar subagent return"
+          }
+        ]
+      }
+    ],
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "LODESTAR_HOOK_MANAGED=1 sh -c 'root=\"${PLUGIN_ROOT:-${CLAUDE_PLUGIN_ROOT:-}}\"; exec \"$root/hooks/run-hook.cmd\" stop'",
+            "statusMessage": "Checking Lodestar handoff"
+          }
+        ]
+      }
+    ]
+  }
+}

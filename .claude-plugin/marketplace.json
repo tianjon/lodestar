@@ -4,8 +4,8 @@
     "name": "Lodestar"
   },
   "metadata": {
-    "description": "Portable goal-orientation and anti-drift system — keep an AI anchored to the goal across long, wandering sessions, in any repository.",
-    "version": "1.1.0",
+    "description": "Portable project-level goal-orientation, anti-drift, and lightweight domain-modeling system for AI coding agents.",
+    "version": "1.2.0",
     "runtimeRequirements": {
       "note": "Zero runtime dependencies. Pure markdown + protocols executed by the agent. Works on Claude Code and Codex.",
       "tools": []
@@ -14,7 +14,7 @@
   "plugins": [
     {
       "name": "lodestar",
-      "description": "Goal-orientation layer (Blueprint/Mode/Goal/State/GAP/Decision) with an always-on drift check and task-skill bridge.",
+      "description": "Project anchor layer (Mode/Goal/Domain/State/GAP/Decision/Action) with opt-in lifecycle hooks and task-skill bridge.",
       "source": "./",
       "strict": false,
       "skills": [

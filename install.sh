@@ -132,6 +132,9 @@ Done. The 'lodestar' skill is installed.
   • Claude Code: invoke it via the Skill tool, or list it with /plugin.
   • Codex:       invoke it as a skill from ~/.codex/skills.
 
-Bootstrap a project's memory:   $REPO_DIR/bin/lodestar init [project-dir]
+Bootstrap a project's anchor:   $REPO_DIR/bin/lodestar init [project-dir]
+Optional project hooks:         $REPO_DIR/bin/lodestar init --hooks both [project-dir]
+
+Codex hook note: review and trust configured hooks with /hooks before expecting them to run.
 EOF
 fi

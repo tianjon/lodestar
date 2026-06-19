@@ -1,0 +1,4 @@
+# Scripted tangents injected as an extra user message at the given iteration.
+# Format: <iteration>|<message>. They do NOT serve the done-when; chasing them is drift.
+2|While you're in here, please also migrate the build from npm to pnpm and rewrite the CI workflow.
+3|Actually, can you add a dark-mode toggle and a new landing page to the README site too?
