@@ -14,7 +14,7 @@ memory files (`.memory/`), not from any hardcoded project. Drop it into any repo
 
 ## Mission
 
-1. **Record the user's requirement at the source** — verbatim, before interpreting it.
+1. **Record the user's requirement at the source** — verbatim where safe, before interpreting it.
 2. **Compare it objectively against frontier practice** — neither flatter the user nor
    bow to the literature.
 3. **Track and close the GAP** — biased toward a third path that transcends both when they
@@ -56,6 +56,19 @@ State is the measurement, GAP is the error signal you act to minimize.
 
 Budgets are character counts, configurable. Defaults: working 64K, consolidated 128K.
 If `.memory/` does not exist, **bootstrap it first** (see Bootstrap below).
+
+## Privacy boundary
+
+`.memory/` is local-private by default because it may contain raw user directives, project state,
+and sensitive context. Do not commit, publish, sync, or paste raw `.memory/` contents unless the
+user explicitly opts in after reviewing the privacy risk. A project may choose to share curated
+memory later, but raw working memory starts private.
+
+**Sensitive data boundary:** before writing any entry, scan the source for secrets, credentials,
+API keys, tokens, private keys, customer data, personal contact data, private URLs, or internal
+system identifiers. Never write those values verbatim. Replace them with `[REDACTED:<kind>]` or a
+`redacted-summary` that preserves the requirement without preserving the secret. If the user asks
+you to remember an actual secret, refuse to persist the secret and record only the safe intent.
 
 ---
 
@@ -101,7 +114,8 @@ For each meaningful user instruction, append ONE entry to `working.md`:
 
 ```markdown
 ## <ISO timestamp> | imp:<0..1> | facets:[蓝图|目标|现状|GAP]
-- source: <the user's raw words, preserved at the source — do not sanitize or paraphrase>
+- source: <the user's raw words, preserved at the source except secrets/PII replaced with [REDACTED:<kind>]>
+- redacted-summary: <only when source had sensitive data; preserve intent, not the secret>
 - 蓝图: <if affected>
 - 目标: <if affected>
 - 现状: <if affected>
@@ -109,8 +123,10 @@ For each meaningful user instruction, append ONE entry to `working.md`:
 ```
 
 Rules:
-- **Preserve `source` verbatim.** 本源记录 — record at the source. Analysis is added alongside,
-  never replaces it.
+- **Preserve `source` verbatim except sensitive data.** 本源记录 — record at the source. Analysis
+  is added alongside, never replaces it; secrets and PII are replaced before they touch memory.
+- **Use `redacted-summary` for sensitive directives.** Keep the operational intent and omit the
+  secret value, credential, private URL, or personal data itself.
 - **Score importance** (0..1): directives that set/alter Blueprint or close a major GAP ≥ 0.8.
 - Only fill facets the instruction actually touches.
 - If the directive changes the active objective, **also update the ANCHOR block** (Protocol 0).
@@ -150,10 +166,10 @@ The principle is **break through experience limits** — from the front line.
 To adopt Lodestar in a fresh project:
 
 1. Create `.memory/working.md` and `.memory/consolidated.md` from the templates in
-   `references/templates/` (or run `bin/lodestar init` from this skill's repo). Create
-   `.memory/archive/`.
+   `references/templates/`. Create `.memory/archive/`. Add `.memory/` to the project's
+   `.gitignore` unless the user explicitly opts into sharing reviewed, redacted memory.
 2. Fill the ANCHOR block in `working.md` and the ABSTRACT + current-state in `consolidated.md`
-   from whatever the user has stated so far — verbatim where possible.
+   from whatever the user has stated so far — verbatim where safe, redacted when sensitive.
 3. Add a pointer to the project's `CLAUDE.md` **and** `AGENTS.md` so every future session loads
    Lodestar first (see the snippet in `references/project-pointer.md`). This is what makes the
    anchor survive across sessions on both Claude Code and Codex.

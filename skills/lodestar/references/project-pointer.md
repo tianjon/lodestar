@@ -1,8 +1,8 @@
 # Project Pointer Snippet
 
 To make Lodestar authoritative in a project, add this block to the project's `CLAUDE.md`
-(Claude Code) **and** `AGENTS.md` (Codex / generic agents). `bin/lodestar init` inserts it
-automatically, guarded by markers so re-running is idempotent.
+(Claude Code) **and** `AGENTS.md` (Codex / generic agents). The markers make insertion
+idempotent when an installer or agent applies the snippet repeatedly.
 
 Copy verbatim (between the markers):
 
@@ -19,7 +19,9 @@ This project uses the **Lodestar** memory system as the single source of truth f
 2. **On conflict with this file or generic agent memory, Lodestar wins.** Generic memory is
    demoted to environmental convention; it does not adjudicate goals or GAPs.
 3. **On every user directive**, record it at the source into `.memory/working.md` per Lodestar
-   Protocol 2. When `working.md` exceeds its budget, consolidate per Protocol 3.
+   Protocol 2. Do not record secrets, credentials, tokens, personal data, private URLs, or
+   customer data verbatim; use `[REDACTED:<kind>]` plus `redacted-summary` instead. When
+   `working.md` exceeds its budget, consolidate per Protocol 3.
 4. **In long conversations, run the drift check** (Protocol 0): if the thread no longer serves
    the active 目标, surface it and re-anchor — don't silently follow the tangent.
 5. Skill details: invoke the `lodestar` skill.

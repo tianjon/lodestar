@@ -37,21 +37,30 @@ Sourcing, Perceptual Control Theory, Active Inference, and TRIZ — see
 ## Install
 
 ```bash
-git clone <this-repo> ~/ai/lodestar   # or just keep it where it is
-cd ~/ai/lodestar
-./install.sh                          # installs to Claude Code + Codex (whichever are present)
+git clone https://github.com/tianjon/lodestar.git ~/.lodestar
+cd ~/.lodestar
+./install.sh
 ```
 
-`install.sh` symlinks `skills/lodestar` into `~/.claude/skills/` and `~/.codex/skills/`, so both
-runtimes pick it up and updates stay in sync. Flags: `--copy` (detach from repo), `--claude` /
-`--codex` (one target), `--uninstall`.
+`install.sh` symlinks `skills/lodestar` into `~/.claude/skills/` and, when Codex is present,
+`~/.codex/skills/`, so both runtimes pick it up and updates stay in sync. Flags: `--copy`
+(detach from repo), `--claude` / `--codex` (one target), `--uninstall`, `--force` (replace an
+existing unmanaged install).
+
+Pinned release install:
+
+```bash
+git clone --branch v1.0.0 --depth 1 https://github.com/tianjon/lodestar.git ~/.lodestar
+cd ~/.lodestar
+./install.sh --copy
+```
 
 ### Claude Code (as a plugin marketplace)
 
 Alternatively, install it as a plugin so it shows up under `/plugin`:
 
 ```
-/plugin marketplace add ~/ai/lodestar
+/plugin marketplace add tianjon/lodestar
 /plugin install lodestar@lodestar
 ```
 
@@ -63,24 +72,29 @@ natively. Nothing else required.
 ## Use it in a project
 
 ```bash
-~/ai/lodestar/bin/lodestar init        # in your project root
+~/.lodestar/bin/lodestar init          # in your project root
 ```
 
 This creates `.memory/{working,consolidated}.md` + `archive/` from templates and wires a
 "load Lodestar first" pointer into the project's `CLAUDE.md` **and** `AGENTS.md` (idempotent).
+It also adds `.memory/` to the project's `.gitignore` so raw working memory starts private.
 Then open `.memory/working.md` and fill the `⚓ ANCHOR` Goal / Done-when / Boundaries.
 
 From then on, any agent session in that project:
 
 - reads `.memory/` at start and treats it as authoritative for goal/state/GAP;
-- records each of your directives **at the source** (verbatim) into `working.md`;
+- records each of your directives **at the source** into `working.md`, with secrets and PII
+  redacted before they touch memory;
 - runs the **drift check** in long sessions and re-anchors when the thread wanders;
 - consolidates `working.md` into `consolidated.md` when it outgrows its budget.
+
+Raw `.memory/` is local-private by default. If a team wants versioned project memory, review and
+redact it first, then remove the `.memory/` ignore rule deliberately.
 
 Inspect anytime:
 
 ```bash
-~/ai/lodestar/bin/lodestar status      # sizes vs budgets + current anchor goal
+~/.lodestar/bin/lodestar status        # sizes vs budgets + current anchor goal
 ```
 
 ## Layout
@@ -95,8 +109,11 @@ lodestar/
 │       ├── project-pointer.md      # the CLAUDE.md / AGENTS.md snippet
 │       └── templates/{working,consolidated}.md
 ├── .claude-plugin/marketplace.json # Claude Code plugin manifest
+├── .github/workflows/ci.yml        # syntax + smoke tests on Linux/macOS
 ├── install.sh                      # dual-target installer (Claude Code + Codex)
 ├── bin/lodestar                    # init / status / install CLI
+├── VERSION                         # release version
+├── CHANGELOG.md                    # release notes
 ├── AGENTS.md                       # repo guidance for agents
 └── README.md
 ```

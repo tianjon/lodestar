@@ -24,6 +24,34 @@ extract_pointer() {
   awk '/<!-- LODESTAR:START -->/{f=1} f{print} /<!-- LODESTAR:END -->/{f=0}' "$POINTER_FILE"
 }
 
+render_template() {
+  local template="$1" project="$2" line rest rendered
+  while IFS= read -r line || [ -n "$line" ]; do
+    rest="$line"
+    rendered=""
+    while [[ "$rest" == *"<PROJECT>"* ]]; do
+      rendered="${rendered}${rest%%<PROJECT>*}${project}"
+      rest="${rest#*<PROJECT>}"
+    done
+    printf '%s\n' "${rendered}${rest}"
+  done < "$template"
+}
+
+ensure_memory_gitignore() {
+  local dir="$1" gitignore="$dir/.gitignore" last_char=""
+  touch "$gitignore"
+  if grep -Fxq '.memory/' "$gitignore"; then
+    echo "  · .memory/ already private in .gitignore"
+    return
+  fi
+  if [ -s "$gitignore" ]; then
+    last_char="$(tail -c 1 "$gitignore" 2>/dev/null || true)"
+    [ -n "$last_char" ] && printf '\n' >> "$gitignore"
+  fi
+  printf '.memory/\n' >> "$gitignore"
+  echo "  ✓ marked .memory/ private in .gitignore"
+}
+
 cmd_init() {
   local dir="${1:-.}"
   dir="$(cd "$dir" && pwd)"
@@ -37,10 +65,12 @@ cmd_init() {
     if [ -e "$target" ]; then
       echo "  · kept existing $target"
     else
-      sed "s/<PROJECT>/$project/g" "$TPL_DIR/$f.md" > "$target"
+      render_template "$TPL_DIR/$f.md" "$project" > "$target"
       echo "  ✓ created $target"
     fi
   done
+
+  ensure_memory_gitignore "$dir"
 
   # Wire the project pointer into CLAUDE.md and AGENTS.md (idempotent).
   local block; block="$(extract_pointer)"
@@ -62,7 +92,13 @@ cmd_init() {
   echo "Next: open .memory/working.md and fill the ⚓ ANCHOR Goal / Done-when / Boundaries."
 }
 
-filesize() { wc -c < "$1" 2>/dev/null | tr -d ' '; }
+char_count() {
+  if command -v perl >/dev/null 2>&1; then
+    perl -Mopen=:std,:encoding\(UTF-8\) -0ne 'print length($_)' "$1"
+  else
+    wc -m < "$1" 2>/dev/null | tr -d ' '
+  fi
+}
 
 cmd_status() {
   local dir="${1:-.}"
@@ -77,7 +113,7 @@ cmd_status() {
     local f="${pair%%:*}" budget="${pair##*:}"
     local p="$mem/$f"
     if [ -f "$p" ]; then
-      local n; n="$(filesize "$p")"
+      local n; n="$(char_count "$p")"
       local pct=$(( n * 100 / budget ))
       printf '  %-16s %8s / %-8s chars (%d%%)' "$f" "$n" "$budget" "$pct"
       [ "$n" -gt "$budget" ] && printf '  ⚠ over budget — consolidate (Protocol 3)'

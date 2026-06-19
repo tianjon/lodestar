@@ -17,6 +17,7 @@ active goal instead of being pulled off by the latest tangent. Full spec:
 |-----|-------------|
 | `skills/lodestar/` | The skill. `SKILL.md` is the entry; `references/` holds the deep playbook, grounding, pointer snippet, and file templates. Self-contained — never links outside its own folder. |
 | `.claude-plugin/` | `marketplace.json` so Claude Code can install it as a plugin. |
+| `.github/workflows/ci.yml` | Release smoke tests for Linux/macOS. |
 | `bin/lodestar` | CLI: `init` a project's `.memory/`, `status`, `install`. |
 | `install.sh` | Dual-target installer (Claude Code + Codex), symlink by default. |
 
@@ -24,13 +25,14 @@ active goal instead of being pulled off by the latest tangent. Full spec:
 
 The skill is distributed and consumed independently — the `skills/lodestar/` folder may be
 copied into another project or loaded standalone. Therefore `SKILL.md` and its `references/`
-**never link outside the skill's own directory**. Repo-level docs (this file, README) are for
-maintainers and are not referenced from `SKILL.md`.
+**never require files outside the skill's own directory**. Repo-level docs and helper scripts
+(this file, README, `bin/lodestar`, `install.sh`) are for maintainers and convenience installs;
+the skill must still explain a complete manual bootstrap path on its own.
 
 ## Conventions
 
 - **No runtime, no build step.** Do not add a code dependency to the skill itself; its value is
-  the protocol. `bin/lodestar` and `install.sh` are plain POSIX shell for convenience only.
+  the protocol. `bin/lodestar` and `install.sh` are plain bash scripts for convenience only.
 - **Memory budgets** are character counts: `working.md` ≤ 64K, `consolidated.md` ≤ 128K. Keep
   them in sync between `SKILL.md`, the templates, and `bin/lodestar`.
 - **The project pointer block** (the `<!-- LODESTAR:START -->…<!-- LODESTAR:END -->` snippet in
@@ -41,6 +43,7 @@ maintainers and are not referenced from `SKILL.md`.
 
 ## Releasing
 
-1. Bump `version` in `.claude-plugin/marketplace.json` and this file together.
+1. Bump `VERSION`, `CHANGELOG.md`, `version` in `.claude-plugin/marketplace.json`, and this file together.
 2. Keep README install instructions accurate for both runtimes.
-3. Commit all changes together before tagging.
+3. Run `tests/lodestar_cli_test.sh` and `git diff --check`.
+4. Commit all changes together before tagging `v<version>`.

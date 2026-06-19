@@ -2,6 +2,8 @@
 
 Tier-2 semantic memory. Budget ≤ 128K characters. Current-state stays complete; the trend log
 is append-only and only ever coarsened, never deleted.
+Local-private by default. Do not copy raw secrets, credentials, personal data, or private URLs
+from working memory into this file.
 
 > ABSTRACT: <PROJECT> · phase <X> · biggest open GAP: <one line>
 

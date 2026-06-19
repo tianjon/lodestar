@@ -1,0 +1,27 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  smoke:
+    name: Smoke tests (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest]
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Bash syntax check
+        run: |
+          bash -n install.sh
+          bash -n bin/lodestar
+          bash -n tests/lodestar_cli_test.sh
+
+      - name: CLI and installer smoke tests
+        run: tests/lodestar_cli_test.sh
