@@ -14,7 +14,7 @@
   "interface": {
     "displayName": "Lodestar",
     "shortDescription": "Keep Codex anchored to project goals, domain language, and next actions.",
-    "longDescription": "Lodestar provides a project-local .lodestar/ anchor, lightweight domain map, GAP ledger, and opt-in lifecycle hooks for session start, tool use, compaction, subagents, and stop handoffs.",
+    "longDescription": "Lodestar provides a project-local .lodestar/ anchor, lightweight domain map, flat state summary, decision log, and opt-in lifecycle hooks for session start, tool use, compaction, subagents, and stop handoffs.",
     "developerName": "Lodestar",
     "category": "Developer Tools",
     "capabilities": ["skills", "hooks"],

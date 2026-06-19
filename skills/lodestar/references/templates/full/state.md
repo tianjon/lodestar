@@ -2,7 +2,7 @@
 
 Current project state. Budget ≤ 128K characters. Keep current-state complete and factual.
 
-> ABSTRACT: <PROJECT> · phase <X> · biggest open GAP: <one line>
+> ABSTRACT: <PROJECT> · phase <X> · biggest open question/gap: <one line>
 
 ## Current State
 
@@ -32,9 +32,13 @@ Current project state. Budget ≤ 128K characters. Keep current-state complete a
 
 - <assumption> — evidence: <source or missing> — confidence: <low|medium|high>
 
-### 开放 GAP Open GAPs
+### 开放问题 / 差距 Open Questions / Gaps
 
-- GAP-<YYYYMMDD>-<n>: [要求: <want> | 实践: <field practice> | 证据: <source> | 置信度: <low|medium|high> | 突破解: <third path> | 下一步: <action>] — <status>
+- <question or requirement-vs-reality gap> — evidence: <source or missing> — next: <action>
+
+Use a full structured GAP entry only when the structure changes the next action:
+
+- GAP-<YYYYMMDD>-<n>: [要求: <want> | 现实/实践: <current reality or field practice> | 证据: <source> | 下一步: <action>] — <status>
 
 ### 决策日志 Decision Log
 

@@ -11,7 +11,7 @@ or actions that materially change the path.
 - redacted-summary: <only when source had sensitive data; preserve intent, not the secret>
 - domain: <terms/objects/contexts/capabilities affected, if any>
 - evidence: <file/command/URL/user quote/etc.; confidence low|medium|high>
-- gap: <GAP id or none>
+- gap: <flat gap/question note or none>
 - decision: <DEC id or none>
 - next-action: <ACT id or plain next step>
 

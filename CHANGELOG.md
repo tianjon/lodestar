@@ -2,13 +2,6 @@
 
 ## Unreleased
 
-- Extended the eval gauntlet with three harder tasks (`descent-drift`, `rabbit-hole`, `multitask-chat`)
-  testing memory **representation** (flat list vs blob vs tree) under multi-step, multi-thread,
-  cold-restart pressure.
-- **Finding:** a flat, append-only notes list is the best representation. A **tree** scored *worst* in
-  the hardest test — re-rendering a tree across many self-maintained updates loses information. Updated
-  README/docs to recommend `minimal` (flat) and to advise against nested/tree memory structure.
-
 ## 1.3.0 - 2026-06-19
 
 - Injected hook context is now marked as **silent orientation**: agents are told to use it to steer
@@ -23,7 +16,14 @@
   `evals/FINDINGS.md`: cross-restart persistence of *changed* goals is supported; a structured anchor
   beating a plain reminder is **not** yet shown.
 - Aligned README/docs claims with the evidence: the headline value is persisting information that
-  changes across context resets; `minimal` profile stays the default and the heavier schema is unproven.
+  changes across context resets; `minimal` profile stays the default and heavier agent-maintained
+  structure should not be the default path.
+- Extended the eval gauntlet with harder representation tests (`descent-drift`, `rabbit-hole`,
+  `multitask-chat`, and `gap-consolidation`) under cold-restart and forced-consolidation pressure.
+- **Finding:** flat summaries and append-only notes are the best default representation. Agent-maintained
+  tree/GAP-ledger structures lost information during repeated re-rendering and compression, including
+  in the `gap-consolidation` regime they were designed to help. GAP remains useful as a reasoning lens;
+  deterministic tool-maintained structure remains untested.
 
 ## 1.2.0 - 2026-06-19
 

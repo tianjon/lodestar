@@ -1,6 +1,6 @@
 # Lodestar Log — <PROJECT>
 
-Recent directives, evidence, decisions, GAP updates, domain-model changes, and action changes.
+Recent directives, evidence, decisions, material gap/question updates, domain-model changes, and action changes.
 Budget ≤ 64K characters. Append only meaningful changes; do not turn this into a transcript.
 
 <!-- Entry template:
@@ -18,7 +18,7 @@ Budget ≤ 64K characters. Append only meaningful changes; do not turn this into
   - capabilities: <capabilities affected>
 - assumptions: <if any>
 - evidence: <file/command/URL/user quote/etc.; confidence low|medium|high>
-- gap:
+- gap: <flat note by default; use the structured fields only when material>
   - id: GAP-<YYYYMMDD>-<n>
   - requirement: <what the user wants>
   - practice: <project fact / field practice / literature claim>

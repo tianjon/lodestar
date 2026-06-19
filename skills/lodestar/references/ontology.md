@@ -10,9 +10,9 @@ compare goal with reality, and choose the next action that reduces the GAP.
 |---|---|---|
 | **Orientation Core** | Anchor, goal clarity, done-when, boundaries, mode, next action, drift checks | Full-text recall or vector search |
 | **Domain Modeler** | Ubiquitous language, bounded contexts, core objects, capabilities, scenarios, open questions | Heavy software DDD patterns unless needed by the project |
-| **Reasoning Ledger** | Directives, assumptions, evidence, decisions, open GAPs, actions | Hidden chain-of-thought |
-| **State Projection** | Current state, active GAPs, decision summary, evidence summary | Rewriting history to look cleaner |
-| **Skill Bridge** | Aligning task skills and subagents with the active Goal/GAP | Replacing task-specific methods |
+| **Orientation Record** | Directives, assumptions, evidence, decisions, open gaps/questions, actions | Hidden chain-of-thought or a heavy memory ledger |
+| **State Projection** | Current state, active gaps/questions, decision summary, evidence summary | Rewriting history to look cleaner |
+| **Skill Bridge** | Aligning task skills and subagents with the active Goal or open gap/question | Replacing task-specific methods |
 
 ## Core Objects
 
@@ -46,14 +46,15 @@ State, Evidence, GAP, Decision, Action, or Handoff.
 
 ### GAP
 
-The error signal between desired state and current reality.
+The error signal between desired state and current reality. Use it as a reasoning lens first; only
+write a structured GAP entry when the structure changes the next action.
 
 - `Requirement`: what the user wants, stated honestly.
-- `Practice`: current project fact, field practice, or literature claim.
+- `CurrentReality`: current project fact, field practice, or literature claim.
 - `Evidence`: source-backed support for the practice/current-state claim, or `evidence: missing`.
-- `Confidence`: `low`, `medium`, or `high`.
-- `Breakthrough`: a third path when Requirement and Practice conflict.
 - `NextAction`: the concrete action that should reduce the GAP.
+
+Optional fields for material conflicts: `Confidence`, `Practice`, `Breakthrough`.
 
 ### Evidence
 
@@ -73,7 +74,7 @@ A choice that changes the path forward.
 
 ### Action
 
-A concrete next step chosen because it serves the active Goal and reduces a GAP.
+A concrete next step chosen because it serves the active Goal and reduces a gap.
 
 ### SkillRun
 
@@ -89,7 +90,7 @@ DoneWhen verifies Goal.
 Boundary constrains Goal.
 DomainMap gives Goal a shared language.
 Directive may update Anchor, DomainMap, State, GAP, Decision, or Action.
-GAP compares Requirement with Practice.
+GAP compares Requirement with CurrentReality or Practice.
 Evidence supports Practice, State, DomainMap, and Decision.
 Decision resolves or narrows a GAP.
 Action implements Decision or reduces GAP.
@@ -102,7 +103,7 @@ StateProjection summarizes log events into current State.
 - The active Goal is one sentence. If it cannot be one sentence, Mode should be `clarify`.
 - DoneWhen is observable. If it is not observable, the goal is not ready for `execute`.
 - The Domain Map clarifies language and boundaries; it must not add ceremony for its own sake.
-- Every Practice claim inside a GAP needs Evidence or must be marked `evidence: missing`.
+- Every current-reality or practice claim inside a GAP needs Evidence or must be marked `evidence: missing`.
 - Every Decision needs an identifier and a short rationale.
 - Task skills may decide how to work, but Lodestar decides whether the work still serves the active Goal.
 - External recall systems can supply Evidence; they do not replace the Anchor.

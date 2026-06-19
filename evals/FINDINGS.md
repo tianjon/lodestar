@@ -1,60 +1,62 @@
-# Eval Findings (pilot — directional, but now converging)
+# Eval Findings (pilot — directional)
 
-Status: **n=2–3 per arm, pilot scale.** Directional, not significant — but seven runs now point the
-same way, and the decisive run (#7) has a clear mechanism, not just a number.
+Status: **n=2–3 per arm, pilot scale.** Directional, not significant. Eight runs.
 
-## Headline (after 7 runs)
+## Headline
 
-1. **Persisting the relevant information across resets is Lodestar's real value.** Confirmed wherever
-   the bare agent actually loses the info (runs 2, 5, 6, 7).
-2. **Among memory representations, a flat append-only list is best — and *more* structure is actively
-   worse.** In the hardest, most realistic test (run 7: 3 interleaved threads, agent maintains its own
-   notes across 9 cold-restart turns), **flat (B) scored a perfect 3.0 / 100% key recall; the tree (D)
-   scored 1.5 — worse than an unstructured blob (C, 1.83) and barely above bare (A, 1.0).**
-3. **Mechanism:** maintaining a *tree* across many updates is costly — the agent re-renders it each
-   turn and **drops/garbles entries** (D literally answered "my notes don't record that" and lost the
-   Postgres-only constraint). A flat list is append-only and lossless, so it retains everything.
+1. **Persisting the relevant information across resets is the real value.** Confirmed wherever the bare
+   agent loses the info (runs 2, 5, 6, 7).
+2. **A flat notes representation beats a structured one — in BOTH regimes now, including memory
+   consolidation.** Run 8 finally tested the regime a GAP ledger is designed for (two forced merges +
+   a status reopen + a moving core goal). The GAP ledger came **last**; flat-summarize came **first**.
+3. **Mechanism (consistent across runs 5/7/8):** a structured, agent-maintained memory (tree, GAP
+   ledger) is **fragile to maintain** — re-rendering/compressing it repeatedly garbles ids and drops
+   entries. A flat list/summary is robust. In run 8 the flat arms kept the old-open branch **every
+   time** (even under a recency-drop rule), while the GAP ledger — under an explicit keep-open rule —
+   **lost it 2 of 3 times** and held the core goal worst.
 
-This **resolves the H1/H2 question and reverses the descent-drift hint:** descent-drift's tree win
-came from a **driver-maintained** (perfect) tree. The moment a *real agent* must maintain the tree —
-the faithful Lodestar condition — the maintenance cost backfires and the tree loses.
+## Run 8 — gap-consolidation HARD (the test you asked for)
+| arm | open_recall | recalled_old_open | caught_reopen | false_open | core_goal_held |
+|---|---|---|---|---|---|
+| F flat-truncate | 2.33 | 1.00 | 0.33 | 1.00 | 3.00 |
+| **S flat-summarize** | **3.00** | **1.00** | **0.67** | 0.67 | **3.00** |
+| G GAP-ledger | **1.33** | **0.33** | 0.33 | 0.33* | **1.67** |
+
+\* G's low false_open is an artifact of under-recall — it surfaced so few branches it had fewer chances
+to be wrong. It did not preserve more; it preserved less.
+
+**Verdict:** even in its home regime, the agent-maintained GAP ledger does **not** earn its place. The
+hypothesis "tracking branch-vs-core-goal gaps pays off at memory merge" was reasonable and worth
+testing (it was genuinely untested before run 8) — but the data refutes it for agent-maintained memory.
+
+## Important caveat (same rigor we applied to run 7)
+Run 8 tests an **agent-maintained** GAP ledger, and its failure is driven by **maintenance fragility of
+structure**, not by the GAP *concept* in the abstract. A GAP ledger maintained by a **deterministic tool
+/ hook** (not the LLM) is a different, untested thing and could behave differently. But for the realistic
+Lodestar design — where the agent maintains `.lodestar/` files — the evidence across runs 5/7/8 is now
+consistent and strong: **structure loses.**
 
 ## Runs
+| Run | Task | Regime | Verdict |
+|---|---|---|---|
+| 1 | su-dongpo base | short, no-merge | Null (ceiling). → T8. |
+| 2 | goal-shift | short, no-merge | Persistence supported. B≈C. |
+| 3 | constraints (counter) | short, no-merge | Invalid metric. Discarded. |
+| 4 | constraints (judge) | short, no-merge | Null (ceiling). |
+| 5 | descent-drift | driver-maintained tree | D≫flat — but tree was perfectly maintained; unreplicated. |
+| 6 | rabbit-hole | single finale, tiny | B=C=D. |
+| 7 | multitask-chat | agent-maintained, no-merge | Flat ≫ tree (regeneration fragility). |
+| 8 | **gap-consolidation HARD** | **2 forced merges + reopen + moving goal** | **Flat ≫ GAP ledger.** Structure loses even at consolidation. |
 
-| Run | Task | Verdict |
-|---|---|---|
-| 1 | su-dongpo base | Null (ceiling). Surfaced anchor leak → T8. |
-| 2 | su-dongpo goal-shift | **Persistence supported.** Bare reverts; re-injection holds. B≈C. |
-| 3 | constraints (counter) | Invalid metric. Discarded. |
-| 4 | constraints (blind judge) | Null (ceiling). |
-| 5 | descent-drift (driver-maintained tree) | D≫flat — but tree was perfectly maintained by the driver; unreplicated. |
-| 6 | rabbit-hole (single finale, 5 notes) | B=C=D. Structure irrelevant on a tiny note-set. |
-| 7 | **multitask-chat (agent-maintained notes, 3 threads, 9 turns)** | **Flat (B) ≫ tree (D); tree HURTS.** Decisive. |
+## Honest standing
+- **Validated:** persistence is the value; a **flat** representation is best, now in both the no-merge
+  and the consolidation regimes (for agent-maintained memory).
+- **Refuted (for agent-maintained memory):** the GAP ledger / structured schema earns its place — it
+  doesn't, even in its designed regime.
+- **Still untested:** a **tool/hook-maintained** structured GAP ledger (deterministic, not LLM-rendered).
+  That is the only remaining door for structure, and it is a different system from what Lodestar ships.
+- **So:** stripping the agent-maintained GAP engine is now **evidence-supported** (8 runs), pending an
+  n≥5 confirmation. If structure is to be revived, it must be **tool-maintained**, and tested as such.
 
-## What is supported
-- **Persistence of relevant info across resets** — the validated core.
-- **Flat, append-only notes as the representation** — empirically best (run 7), because it is cheap to
-  maintain losslessly.
-- **T8 silent-anchor fix** (runs 3, 4).
-
-## What is refuted
-- **Upgrading memory to a tree.** Not just "no benefit" — **net harmful** when the agent maintains it
-  (run 7). The honest answer to "do we need a tree?" is **no.**
-- By extension, **"more structure = better" is false here.** This raises a concrete, testable product
-  question: is Lodestar's `full` profile (more structure) *worse* than `minimal`? Run 7's mechanism
-  predicts yes. Worth a direct `minimal` vs `full` eval before recommending `full` for anything.
-
-## Caveats
-- n=2 in run 7 (consistent across both seeds, with a clear mechanism, but small).
-- "Agent maintains its own notes" makes this a test of *templates for agent-maintained memory*
-  (the realistic Lodestar case), not abstract data structures.
-- Replicate at n≥5 and on a second multi-thread domain to firm it up.
-
-## Product implications (evidence-backed)
-- **Keep the anchor/notes flat and append-only.** Do **not** add tree/nested structure to the memory
-  files. This *validates* Lodestar's minimal-by-default design and argues against its heavier schema.
-- Consider making `minimal` the only recommended profile pending a `minimal`-vs-`full` eval.
-
-## Open measurement debt
-- Residual goal-restatement preamble (T10).
-- Run 6 harness artifact: an un-anchored agent leaked unrelated repo content into its answer.
+## Open debt
+- Residual goal-restatement preamble (T10). Run 6 harness artifact (un-anchored agent leaked repo content).

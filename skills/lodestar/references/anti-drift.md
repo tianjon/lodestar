@@ -31,7 +31,7 @@ Mode changes how to interpret drift:
 - `clarify`: keep asking what would make the Goal one sentence and Done-when observable.
 - `decide`: keep options, evidence, consequences, and Decision ids visible.
 - `execute`: treat scope expansion as high-risk unless it advances Done-when.
-- `review`: compare outcomes against Done-when, open GAPs, and Decision Log.
+- `review`: compare outcomes against Done-when, open gaps/questions, and Decision Log.
 
 ## The Drift Check
 
@@ -48,7 +48,7 @@ Before any non-trivial action, ask: **does this still serve the active Goal?**
 - The last several turns never reference Done-when.
 - You are answering a side question as if it were the project.
 - Scope is silently growing past Boundaries.
-- You cannot say how the current action closes the active GAP.
+- You cannot say how the current action closes the active gap or open question.
 - A task skill is being followed correctly, but no longer serves the active Goal.
 - The Domain Map suggests you crossed into a different bounded context without naming it.
 

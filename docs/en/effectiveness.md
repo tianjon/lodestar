@@ -15,7 +15,8 @@ goal and done-when instead of simply following the newest input.
 Each design choice maps to an established idea. The names are pointers, not appeals to authority.
 
 - **Complementary Learning Systems** — two tiers: fast episodic `log.md`, slow semantic
-  `state.md`. Consolidation replays episodic detail into stable structure.
+  `state.md`. Consolidation should preserve stable facts without forcing the agent to maintain a
+  fragile structured ledger.
 - **MemGPT / virtual context paging** — finite context is a memory hierarchy; size budgets trigger
   paging of cold detail to archive.
 - **Generative Agents (recency × importance)** — retention is not pure recency; an old
@@ -33,10 +34,10 @@ Each design choice maps to an established idea. The names are pointers, not appe
 
 ## Gap-driven and evidence-backed
 
-Lodestar does not ask the agent to "remember more." It asks the agent to reduce a gap:
-requirement, current reality or practice, evidence, confidence, breakthrough, next action. A
-practice claim must carry evidence or be marked `evidence: missing`, so a fluent guess cannot
-masquerade as field practice.
+Lodestar does not ask the agent to "remember more." It asks the agent to reduce a gap: requirement,
+current reality or practice, evidence, and next action. Add confidence or a breakthrough path only
+when that extra structure changes the next action. A practice claim must carry evidence or be marked
+`evidence: missing`, so a fluent guess cannot masquerade as field practice.
 
 ## Hooks as enforcement — stated honestly
 

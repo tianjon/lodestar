@@ -10,7 +10,7 @@
 
 这些名字是指向概念的路标，不是诉诸权威。
 
-- **Complementary Learning Systems**：两层结构，快速情节层 `log.md`，慢速语义层 `state.md`。consolidation 把情节细节回放成稳定结构。
+- **Complementary Learning Systems**：两层结构，快速情节层 `log.md`，慢速语义层 `state.md`。consolidation 应保留稳定事实，但不要求 agent 维护脆弱的重型结构化 ledger。
 - **MemGPT / virtual context paging**：有限上下文本质上是记忆层级；大小预算触发冷细节分页到 archive。
 - **Generative Agents（recency × importance）**：保留不是纯近因；一个旧的蓝图级决策，应该高于一条新鲜但琐碎的备注。
 - **Event Sourcing**：log 是追加式事件流，current state 是从事件流投影出来的视图。历史被追加和重新投影，而不是悄悄改写。
@@ -21,7 +21,7 @@
 
 ## GAP 驱动，证据支撑
 
-Lodestar 不要求 agent “记得更多”。它要求 agent 缩小一个差距：要求、当前现实或实践、证据、置信度、突破解、下一步行动。实践判断必须带证据，或者明确标记 `evidence: missing`，这样流畅猜测就不能伪装成真实实践。
+Lodestar 不要求 agent “记得更多”。它要求 agent 缩小一个差距：要求、当前现实或实践、证据、下一步行动。只有当置信度或突破解会改变下一步行动时，才展开更多结构。实践判断必须带证据，或者明确标记 `evidence: missing`，这样流畅猜测就不能伪装成真实实践。
 
 ## hook 是强制层，但要诚实描述
 

@@ -116,6 +116,13 @@ truth) and is deliberately **kept out of** `source/苏东坡.md`, so orientation
 arm's apparatus — that is what the experiment isolates. Objective scoring (`done_when.sh`): chapter
 count, per-chapter length, thesis-tie ratio, required-coverage %, tangent avoidance.
 
+### `gap-consolidation` — representation stress test
+Tests memory representation directly rather than the A/B/C orientation mechanism: flat truncate vs
+flat summarize vs an agent-maintained GAP ledger. It forces two memory consolidations, a reopened
+decision, and a moving core goal. The pilot result is recorded in [`FINDINGS.md`](FINDINGS.md):
+flat summaries beat the agent-maintained ledger even in the ledger's intended regime. This does not
+rule out deterministic tool-maintained structure; that remains a separate, untested system.
+
 ## How to repeat the experiment
 
 Two run paths, same fixtures and same scorer:
@@ -135,6 +142,7 @@ beat the placebo arm (C) is a real, publishable negative result — not a failur
 ```
 evals/
 ├── README.md                     # this protocol
+├── FINDINGS.md                   # pilot results and caveats
 ├── rubric.json                   # machine-readable metric definitions + pre-registered directions
 ├── judge.md                      # blinded LLM-judge prompt (subjective metrics)
 ├── run.sh                        # headless A/B/C × seed × iteration runner (mock-testable)
@@ -143,10 +151,12 @@ evals/
     │   ├── task.md               # instructions handed to the agent each iteration
     │   ├── done_when.sh          # executable objective done-when + waste detector
     │   └── temptations.txt       # scripted tangents, keyed by iteration
-    └── su-dongpo/
-        ├── task.md               # chapter-by-chapter expansion instructions
-        ├── goal.md               # experimenter ground truth: thesis + measurable done-when
-        ├── questions.txt         # per-chapter content-triggered questions (goal + tangent)
-        ├── done_when.sh          # objective scorer (chapters/length/thesis-tie/coverage/tangent)
-        └── source/苏东坡.md       # pure material skeleton — NO thesis (orientation comes from the arm)
+    ├── su-dongpo/
+    │   ├── task.md               # chapter-by-chapter expansion instructions
+    │   ├── goal.md               # experimenter ground truth: thesis + measurable done-when
+    │   ├── questions.txt         # per-chapter content-triggered questions (goal + tangent)
+    │   ├── done_when.sh          # objective scorer (chapters/length/thesis-tie/coverage/tangent)
+    │   └── source/苏东坡.md       # pure material skeleton — NO thesis (orientation comes from the arm)
+    └── gap-consolidation/
+        └── spec.md               # F/S/G representation stress test used by Run 8
 ```

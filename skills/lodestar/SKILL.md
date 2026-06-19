@@ -9,9 +9,9 @@ A **lodestar** is the star you steer by. This skill keeps a working session orie
 
 - what goal we are pursuing;
 - what is true now;
-- what GAP remains;
+- what gap or open question remains;
 - which domain objects, capabilities, and boundaries matter;
-- what next action should reduce the GAP.
+- what next action should reduce the gap.
 
 Lodestar is **project-level**, not global recall. It reads the active project's state from
 `.lodestar/`.
@@ -21,8 +21,8 @@ Lodestar is **project-level**, not global recall. It reads the active project's 
 1. **Hold the anchor** — keep Mode, Goal, Done-when, Boundaries, and Next action explicit.
 2. **Name drift** — when the thread stops serving the active goal, surface that instead of
    silently following the latest tangent.
-3. **Track the GAP** — compare requirement, current reality, evidence, confidence, decisions,
-   and next actions.
+3. **Use the GAP lens lightly** — compare requirement, current reality, evidence, decisions, and
+   next actions without forcing a heavy ledger for every issue.
 4. **Model the domain lightly** — use DDD ideas as a cognitive aid: ubiquitous language,
    bounded contexts, core objects, capabilities, scenarios, and open questions.
 5. **Bridge task skills** — Lodestar decides what the work is for; task skills decide how to do
@@ -30,7 +30,7 @@ Lodestar is **project-level**, not global recall. It reads the active project's 
 
 ## Authority
 
-For project goals, current state, domain language, decisions, and open GAPs, `.lodestar/` is the
+For project goals, current state, domain language, decisions, and open gaps/questions, `.lodestar/` is the
 scoped project orientation source. When it differs from generic CLAUDE.md / AGENTS.md guidance,
 prefer Lodestar for goal alignment while still honoring generic environment conventions.
 
@@ -42,8 +42,11 @@ Claude Code / Codex hooks provide lifecycle support when installed and trusted.
 Project pilots (`evals/`) show the clearest value is narrow and specific: **persisting information
 that changes across a context reset** — a goal that shifted or a decision made mid-stream, which a
 fresh session would otherwise lose. Keeping the agent on an already-fixed goal, or honoring static
-constraints, is something a strong model does unaided — do not over-invest the anchor there. When the
-goal changes, **re-anchor** (rewrite `anchor.md`) so the *new* goal is what gets re-injected.
+constraints, is something a strong model does unaided — do not over-invest the anchor there. The
+pilot evals also found that flat summaries beat agent-maintained tree/GAP-ledger structures, even
+under forced memory consolidation. Keep Lodestar state flat by default; use structured GAP entries
+only for material conflicts, and treat tool-maintained ledgers as a separate untested design. When
+the goal changes, **re-anchor** (rewrite `anchor.md`) so the *new* goal is what gets re-injected.
 
 ## Files
 
@@ -51,7 +54,7 @@ goal changes, **re-anchor** (rewrite `anchor.md`) so the *new* goal is what gets
 .lodestar/
 ├── anchor.md   # smallest always-loaded surface: Mode / Goal / Done-when / Boundaries / Next action
 ├── domain.md   # lightweight DDD map: language, contexts, objects, capabilities, open questions
-├── state.md    # factual current state, open GAPs, decisions, evidence summaries
+├── state.md    # factual current state, open gaps/questions, decisions, evidence summaries
 ├── log.md      # recent meaningful changes; append-only; ≤64K characters by default
 └── archive/    # cold detail and reviewed handoff snapshots
 ```
@@ -77,12 +80,12 @@ refuse to persist the secret and record only the safe intent.
   and open questions.
 - **Directive**: a meaningful user instruction that changes goal, boundary, state, domain,
   decision, GAP, or action.
-- **GAP**: requirement vs current/practice reality, backed by evidence and confidence, plus a
-  breakthrough path and next action.
+- **GAP**: a lightweight lens for comparing requirement vs current/practice reality, backed by
+  evidence and a next action when the conflict is material.
 - **Evidence**: file, command output, commit, issue, web link, user quote, observed behavior, or
   explicit `evidence: missing`.
 - **Decision**: explicit path choice with alternatives, rationale, consequences, and follow-up.
-- **Action**: concrete next step chosen because it serves the active Goal and reduces a GAP.
+- **Action**: concrete next step chosen because it serves the active Goal and reduces a gap.
 - **SkillRun**: a task workflow such as TDD, debugging, review, or superpowers framed by
   Lodestar.
 
@@ -102,7 +105,7 @@ Modes:
 - `clarify` — converge ambiguity into one Goal and observable Done-when.
 - `decide` — compare options, evidence, and consequences.
 - `execute` — resist scope expansion unless it directly advances Done-when.
-- `review` — audit outcomes against Done-when, Decisions, and open GAPs.
+- `review` — audit outcomes against Done-when, Decisions, and open gaps/questions.
 
 Drift check: before any non-trivial action and every few exchanges in long sessions, ask whether
 the action still serves the active Goal.
@@ -117,7 +120,7 @@ Re-anchoring is a decision. Update `anchor.md` and log the directive; never sile
 
 1. Read `.lodestar/anchor.md`.
 2. Read `.lodestar/domain.md` for project language and boundaries.
-3. Read `.lodestar/state.md` for current facts, open GAPs, and decisions.
+3. Read `.lodestar/state.md` for current facts, open gaps/questions, and decisions.
 4. Read recent `.lodestar/log.md` entries only as needed for recency.
 
 ## Protocol 2 — Record
@@ -133,13 +136,14 @@ Minimal entry:
 - redacted-summary: <only when source had sensitive data>
 - domain: <terms/objects/contexts/capabilities affected, if any>
 - evidence: <file/command/URL/user quote/etc.; confidence low|medium|high>
-- gap: <GAP id or none>
+- gap: <flat gap/question note or none>
 - decision: <DEC id or none>
 - next-action: <ACT id or plain next step>
 ```
 
-Use full GAP/Decision structure only when the change is material. The schema is a discipline, not
-a ceremony.
+Use full GAP/Decision structure only when the change is material. The default representation should
+stay flat and append-only; do not maintain a large agent-authored GAP ledger just because a schema
+exists.
 
 ## Protocol 3 — Domain Modeler (Light DDD)
 
@@ -163,16 +167,20 @@ Translate user language into:
 Keep it light. Do not introduce repositories, aggregate roots, domain events, or event sourcing
 unless the user's software architecture actually needs them.
 
-## Protocol 4 — GAP Engine
+## Protocol 4 — Lightweight GAP Lens
 
-Every open GAP carries:
+A GAP is an error signal, not a required database row. Record a GAP when a real conflict affects the
+next action: the user wants one thing, current reality or field practice says another, and a
+decision is needed.
 
 - `Requirement`: what the user wants, stated honestly.
-- `Practice`: current project reality, field practice, or literature claim.
+- `Current reality`: current project reality, field practice, or literature claim.
 - `Evidence`: cited source or `evidence: missing`.
-- `Confidence`: low / medium / high.
-- `Breakthrough`: a third path when Requirement and Practice conflict.
 - `NextAction`: the action that should reduce the GAP.
+
+Use the full requirement/practice/confidence/breakthrough shape only for important conflicts where
+that structure changes the next action. Prefer a flat open-question or decision-summary line for
+ordinary project state.
 
 Lodestar may challenge the user's Goal or Blueprint, but must state reason and evidence. It does
 not flatter the user and does not obey literature blindly.
@@ -185,13 +193,13 @@ decide **how** to work. Lodestar decides **what the work is for**.
 Before a task skill:
 
 1. Read the Anchor.
-2. Name which Goal/GAP the skill serves.
+2. Name which Goal or open gap/question the skill serves.
 3. Check Mode, Boundaries, and relevant Domain context.
 
 After a task skill:
 
 1. Record what changed in State.
-2. Record Decisions and GAP updates.
+2. Record Decisions and material gap/question updates.
 3. Update Next action.
 4. Update Domain Map only if language, context, objects, or capabilities changed.
 
@@ -203,9 +211,9 @@ When installed and trusted, hooks reduce reliance on model self-discipline:
 
 - `SessionStart`: inject Anchor / Domain / State context.
 - `PreToolUse`: run a lightweight drift check before mutating or non-trivial tools.
-- `PreCompact`: remind the agent to preserve Goal, GAPs, decisions, evidence, and next action.
+- `PreCompact`: remind the agent to preserve Goal, open gaps/questions, decisions, evidence, and next action.
 - `SubagentStart`: inject a `LODESTAR_HANDOFF`.
-- `SubagentStop`: remind the parent to capture state, evidence, decisions, GAPs, and next action.
+- `SubagentStop`: remind the parent to capture state, evidence, decisions, material gaps/questions, and next action.
 - `Stop`: remind the agent to leave a usable handoff.
 
 Hooks are deterministic reminders and context loaders. They should not auto-summarize private

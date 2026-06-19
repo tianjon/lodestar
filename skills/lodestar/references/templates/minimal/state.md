@@ -12,9 +12,9 @@ Current project state. Keep this factual and evidence-backed.
 
 - <fact> — evidence: <file/command/user quote/URL or evidence: missing> — confidence: <low|medium|high>
 
-### Open GAPs
+### Open Questions / Gaps
 
-- GAP-<YYYYMMDD>-<n>: <requirement vs current reality> — next: <action>
+- <question or requirement-vs-reality gap> — evidence: <source or missing> — next: <action>
 
 ### Decision Summary
 

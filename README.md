@@ -29,9 +29,9 @@ across long sessions, context-window compaction, and subagent handoffs — on Cl
 
 ---
 
-**Lodestar** is a portable, project-level **memory and anti-drift system** for **AI coding agents**. It gives
+**Lodestar** is a portable, project-level **goal-orientation and anti-drift system** for **AI coding agents**. It gives
 Claude Code, Codex, and any agent harness a durable **orientation layer** — the active goal, domain language,
-open GAPs, decisions, and next action — that survives long sessions, **context-window compaction**, fresh
+open questions/gaps, decisions, and next action — that survives long sessions, **context-window compaction**, fresh
 sessions, and **subagent handoffs**.
 
 It is not a vector database and not another task playbook. Lodestar is the missing layer between *"remember
@@ -74,7 +74,7 @@ where drift usually happens**.
 |---|---|
 | 🎯 **Project anchor** | `.lodestar/anchor.md` records Mode, Goal, Done-when, Boundaries, and Next action. |
 | 🗺️ **Lightweight domain model** | `.lodestar/domain.md` captures terms, bounded contexts, core objects, capabilities, and open questions. |
-| 📊 **GAP & decision state** | `.lodestar/state.md` keeps current facts, open gaps, evidence, and decision summaries visible. |
+| 📊 **Flat state & decisions** | `.lodestar/state.md` keeps current facts, open questions/gaps, evidence, and decision summaries visible without a heavy ledger. |
 | 📝 **Meaningful log** | `.lodestar/log.md` records goal, evidence, decision, domain, and action changes — without becoming a transcript. |
 | 🪝 **Lifecycle hooks** | Optional Claude Code & Codex hooks inject context on SessionStart, PreToolUse, PreCompact, SubagentStart, SubagentStop, and Stop. |
 | 📦 **Portable skill** | Pure Markdown + bash. No runtime dependency, no lock-in to one agent harness. |
@@ -142,7 +142,7 @@ This creates:
 .lodestar/
 ├── anchor.md   # Mode / Goal / Done-when / Boundaries / Next action
 ├── domain.md   # light DDD map: language, contexts, objects, capabilities, scenarios
-├── state.md    # current facts, open gaps, decisions, evidence summaries
+├── state.md    # current facts, open questions/gaps, decisions, evidence summaries
 ├── log.md      # meaningful changes only, not a transcript
 └── archive/
 ```
@@ -166,7 +166,7 @@ expecting them to run.
 - a goal or decision **changes partway** through a multi-session project;
 - a project spans multiple sessions or context compactions;
 - Claude Code, Codex, task skills, or subagents need a compact project handoff;
-- domain language, decisions, and open gaps need to remain visible over time.
+- domain language, decisions, and open questions/gaps need to remain visible over time.
 
 **Skip Lodestar when:**
 
@@ -201,11 +201,13 @@ equal-volume placebo reminder) — and reports results honestly, null and negati
 
 - ✅ **Supported:** persisting information that *changes* across a context reset (a goal that shifts mid-run,
   decisions juggled across an interleaved multi-thread chat). The bare arm loses it; re-injected orientation keeps it.
-- ✅ **Best representation — flat and append-only.** In the hardest multi-thread test a flat notes list scored
-  perfectly, beating both an unstructured blob and a **tree** — which scored *worst*, because re-rendering a tree
-  across many updates loses information. `minimal` (flat) is the recommended default.
-- ❌ **Refuted — do not add nested/tree structure** to the memory files: more structure was net-harmful when the
-  agent maintains it across cold restarts.
+- ✅ **Best default representation: flat summaries and append-only logs.** Across both no-merge and
+  forced-consolidation pilots, flat notes beat agent-maintained structured memory. In Run 8, the
+  GAP ledger came last even in the regime it was designed for: two forced merges, a status reopen,
+  and a moving core goal.
+- ❌ **Refuted for agent-maintained memory:** do not ask the agent to maintain a heavy GAP ledger or
+  nested/tree state by default. GAP remains useful as a reasoning lens; deterministic tool-maintained
+  structure is a different, still-untested system.
 - ❌ **Not claimed:** "keep the model on a fixed goal" or "honor static constraints" — a strong model does those
   unaided (every static task hit a ceiling).
 
@@ -228,7 +230,7 @@ bash evals/run.sh --agent mock --seeds 1 --iters 2
 <summary><b>Is Lodestar an AI memory system?</b></summary>
 
 Partly, but the core value is orientation, not recall. Lodestar does not try to remember every sentence. It
-keeps the active goal, boundary, domain language, GAP, decision, and next action in a small project-local
+keeps the active goal, boundary, domain language, open gaps/questions, decisions, and next action in a small project-local
 control surface.
 </details>
 
