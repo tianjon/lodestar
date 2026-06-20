@@ -10,6 +10,11 @@ small, stable, external artifact the agent re-reads before acting. A fixed setpo
 counterweight to recency bias — the model can compare the latest instruction against the active
 goal and done-when instead of simply following the newest input.
 
+The setpoint is not a prison. A stale anchor is another form of drift: the agent is still fluent,
+but now it optimizes for yesterday's commitment instead of today's real objective. Lodestar should
+therefore challenge the Anchor when there is enough evidence, ask for confirmation, and only then
+rewrite the primary Goal or promote a branch priority.
+
 ## Cognitive grounding
 
 Each design choice maps to an established idea. The names are pointers, not appeals to authority.
@@ -20,7 +25,8 @@ Each design choice maps to an established idea. The names are pointers, not appe
 - **MemGPT / virtual context paging** — finite context is a memory hierarchy; size budgets trigger
   paging of cold detail to archive.
 - **Generative Agents (recency × importance)** — retention is not pure recency; an old
-  blueprint-level decision outranks a fresh trivial note.
+  blueprint-level decision outranks a fresh trivial note, but repeated high-importance signals can
+  outweigh an old Anchor.
 - **Event Sourcing** — the log is an append-only event stream; current state is a materialized
   view derived from it. History is appended and re-projected, never quietly rewritten.
 - **Perceptual Control Theory** — the four facets are one negative-feedback loop: setpoint,
@@ -55,7 +61,8 @@ Refusing unverifiable claims is itself part of the method, so the limits are sta
   the ceremony is overhead.
 - The drift check is still **executed by the same model that drifts**; externalized triggering
   reduces, but does not erase, that self-reference.
-- A **stale anchor misleads** with the authority of a written record. The maintenance discipline —
-  and, ahead, an executable `doctor` lint that turns the invariants (goal is one sentence,
-  done-when is observable, every practice claim is evidenced) into checks — is what keeps the
-  system honest rather than decorative.
+- A **stale anchor misleads** with the authority of a written record. The agent must be able to
+  detect evidence that the real goal changed, but it must surface that inference instead of
+  silently rewriting the goal. The maintenance discipline — and, ahead, an executable `doctor` lint
+  that turns the invariants (goal is one sentence, done-when is observable, every practice claim is
+  evidenced) into checks — is what keeps the system honest rather than decorative.

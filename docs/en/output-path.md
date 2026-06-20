@@ -32,6 +32,7 @@ The loop closes deliberately: every cycle leaves the state a little clearer for 
 ## What good, Lodestar-aligned output looks like
 
 - It answers the **active goal**, not merely the latest sentence.
+- It challenges a stale active goal when enough evidence shows the real priority changed.
 - It respects the **boundaries**.
 - It speaks the project's **domain language**, not a generic template.
 - It **reduces a named gap** or advances the next action.
@@ -42,3 +43,7 @@ The loop closes deliberately: every cycle leaves the state a little clearer for 
 Confidently and competently answering the most recent sub-question while the actual goal goes
 unserved. That is the silent slide expressed at the level of a single output — and the pipeline
 above exists to catch it before the answer is written, not after.
+
+The symmetric anti-pattern is confidently serving an old Anchor after the user's real goal has
+changed. In that case, the right output is not automatic execution; it is a concise, evidence-backed
+confirmation question about re-anchoring, branch priority, or parking the tangent.

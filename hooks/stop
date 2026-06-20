@@ -11,4 +11,4 @@ if [ ! -d "$root/.lodestar" ]; then
   exit 0
 fi
 
-emit_system_message "Lodestar: before ending, ensure any changed Goal, boundary, decision, evidence, open GAP, or next action is reflected in .lodestar/anchor.md, state.md, domain.md, or log.md as appropriate."
+emit_system_message "Lodestar: before ending, ensure any changed Goal, boundary, decision, evidence, open GAP, next action, or evidence-backed re-anchor/branch-priority proposal is reflected in .lodestar/anchor.md, state.md, domain.md, or log.md as appropriate."

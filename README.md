@@ -36,7 +36,9 @@ sessions, and **subagent handoffs**.
 
 It is not a vector database and not another task playbook. Lodestar is the missing layer between *"remember
 facts"* and *"execute a workflow"*: it tells the agent **why this work exists, what success means, what is out
-of scope, and what to do next** — with zero runtime dependencies (pure Markdown + protocol, plus optional
+of scope, and what to do next**. Its first principle is to hold the **real goal**, not merely the
+written goal: resist recency noise, but proactively flag evidence that the user's priority has
+changed. It does this with zero runtime dependencies (pure Markdown + protocol, plus optional
 lifecycle hooks for enforcement).
 
 ```bash
@@ -73,6 +75,7 @@ where drift usually happens**.
 | Capability | What it gives your AI coding agent |
 |---|---|
 | 🎯 **Project anchor** | `.lodestar/anchor.md` records Mode, Goal, Done-when, Boundaries, and Next action. |
+| 🧭 **Goal-change diagnosis** | Evidence-backed re-anchor proposals when the written anchor no longer matches the real priority. |
 | 🗺️ **Lightweight domain model** | `.lodestar/domain.md` captures terms, bounded contexts, core objects, capabilities, and open questions. |
 | 📊 **Flat state & decisions** | `.lodestar/state.md` keeps current facts, open questions/gaps, evidence, and decision summaries visible without a heavy ledger. |
 | 📝 **Meaningful log** | `.lodestar/log.md` records goal, evidence, decision, domain, and action changes — without becoming a transcript. |
@@ -100,7 +103,9 @@ flowchart LR
 
 The point is not to store more. The point is to make stored state **change the next answer, tool call, plan,
 review, or code edit**. If the next action does not serve the active goal or a named gap, the agent should
-surface the mismatch instead of silently following the tangent.
+surface the mismatch instead of silently following the tangent. If repeated or strong evidence
+suggests the real goal changed, the agent should ask whether to re-anchor, raise a branch goal's
+priority, or park the tangent — never silently rewrite the project goal.
 
 ## 🚀 Quick Start
 

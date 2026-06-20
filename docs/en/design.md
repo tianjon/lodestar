@@ -16,6 +16,15 @@ Blueprint and Goal are setpoints, State is the measurement, and the GAP is the e
 act to reduce. They are not four notes — they are a single negative-feedback loop. Everything
 else in the design serves that loop.
 
+## The anchor is authoritative, not sacred
+
+Lodestar's first principle is to hold the **real goal**, not merely the written goal. The written
+Anchor is a working commitment that protects the agent from recency drift, but it can become stale.
+When repeated or strong evidence suggests the user's actual priority changed, the agent should
+surface that inference and ask whether to re-anchor the primary Goal, raise a branch goal's
+priority, or park the tangent. It should not silently follow the latest aside, and it should not
+silently rewrite the Anchor.
+
 ## Project state
 
 ```text
@@ -41,7 +50,7 @@ remembers:
 - **PreCompact** reminds the agent to persist the active goal, gaps, decisions, and next action
   *before* the lossy summary discards them.
 - **PreToolUse** runs a drift check before a mutating action: does this advance done-when or a
-  named gap?
+  named gap, or does the evidence suggest the real goal has changed and needs confirmation?
 - **SubagentStart / SubagentStop** carry the handoff into a fresh subagent and recapture its
   return.
 - **Stop** nudges the agent to reflect changed goal / boundary / decision / gap back into state.

@@ -11,4 +11,4 @@ if [ ! -d "$root/.lodestar" ]; then
   exit 0
 fi
 
-emit_system_message "Lodestar: before compaction, make sure .lodestar/log.md and .lodestar/state.md can hand off the active Goal, open gaps/questions, decisions, evidence, and next action."
+emit_system_message "Lodestar: before compaction, make sure .lodestar/log.md and .lodestar/state.md can hand off the active Goal, open gaps/questions, decisions, evidence, next action, and any evidence-backed re-anchor proposal or branch-priority change."

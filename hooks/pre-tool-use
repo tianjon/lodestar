@@ -20,6 +20,9 @@ produce only the deliverable without a goal-restating preamble.
 Before this mutating/non-trivial tool call, silently compare the action with the active goal below.
 Proceed if it advances Done-when or a named GAP; if it is a productive tangent, keep a Return-stack
 entry; if it drifts, surface the mismatch before continuing.
+If repeated or strong evidence suggests the real goal or priority has changed, ask whether to
+re-anchor the primary Goal, raise the priority of a branch goal, or park the tangent before mutating.
+Do not silently rewrite the Anchor from one or two side remarks.
 
 ANCHOR (brief):
 $anchor_brief

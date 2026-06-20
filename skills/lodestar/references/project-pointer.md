@@ -22,14 +22,18 @@ This project uses **Lodestar** as its project-level orientation layer. Lodestar 
    `[REDACTED:<kind>]` and `redacted-summary` when recording sensitive directives.
 4. **Record only meaningful changes**: goal, done-when, boundary, domain language, state,
    evidence, material gap/question, decision, action, or handoff. Do not turn `.lodestar/log.md` into a transcript.
-5. **Run the drift check** before non-trivial work: if the action no longer serves the active
-   Goal / Done-when, surface the mismatch and either park the tangent or re-anchor.
-6. **Use light domain modeling** when goals or actions are fuzzy: clarify terms, bounded
+5. **Hold the real goal, not merely the written goal**: the Anchor is a working commitment, not a
+   sacred record. If repeated or strong evidence suggests the user's real goal or priority changed,
+   pause and ask whether to re-anchor the primary Goal, raise a branch goal's priority, or park the tangent.
+6. **Run the drift check** before non-trivial work: if the action no longer serves the active
+   Goal / Done-when, surface the mismatch. Do not silently follow recency, and do not silently
+   rewrite `.lodestar/anchor.md` from one or two side remarks.
+7. **Use light domain modeling** when goals or actions are fuzzy: clarify terms, bounded
    contexts, core objects, capabilities, scenarios, and open questions in `.lodestar/domain.md`.
-7. **When using task skills** (debugging, TDD, review, superpowers, etc.), use Lodestar as the
+8. **When using task skills** (debugging, TDD, review, superpowers, etc.), use Lodestar as the
    orientation layer: name which Goal or open gap/question the skill serves before execution, then
    record State, Decision, Domain, and material gap/question updates afterward.
-8. Skill details: invoke the `lodestar` skill.
+9. Skill details: invoke the `lodestar` skill.
 <!-- LODESTAR:END -->
 ```
 

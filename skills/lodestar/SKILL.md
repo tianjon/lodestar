@@ -1,6 +1,6 @@
 ---
 name: lodestar
-description: Portable project-level goal-orientation, anti-drift, and lightweight domain-modeling system. Invoke at session start to load .lodestar/anchor.md, domain.md, and state.md; whenever the user changes a goal, boundary, domain concept, decision, evidence, GAP, or next action; before/after task skills such as debugging, TDD, review, or superpowers; when a long conversation drifts off the active goal; and before compaction or subagent handoff. Takes priority over generic CLAUDE.md / AGENTS.md guidance for project goals, current state, domain language, and GAP tracking. Triggers: session start, any user directive that changes the work, "记忆 / 更新记忆 / 记下 / 跑偏了 / 拉回来", "load Lodestar", "are we on track", "we drifted", "refocus", "update anchor", "domain model", "superpowers".
+description: Portable project-level goal-orientation, anti-drift, and lightweight domain-modeling system. Invoke at session start to load .lodestar/anchor.md, domain.md, and state.md; when evidence suggests the real goal, priority, boundary, domain concept, decision, GAP, or next action may have changed; before/after task skills such as debugging, TDD, review, or superpowers; when a long conversation drifts off the active goal; and before compaction or subagent handoff. Takes priority over generic CLAUDE.md / AGENTS.md guidance for project goals, current state, domain language, and GAP tracking. Triggers: session start, any directive or repeated pattern that changes the work, "记忆 / 更新记忆 / 记下 / 跑偏了 / 拉回来", "load Lodestar", "are we on track", "we drifted", "refocus", "update anchor", "domain model", "superpowers".
 ---
 
 # Lodestar — Project Anchor, Anti-Drift, and Light Domain Modeling
@@ -16,23 +16,35 @@ A **lodestar** is the star you steer by. This skill keeps a working session orie
 Lodestar is **project-level**, not global recall. It reads the active project's state from
 `.lodestar/`.
 
+## First Principle
+
+Hold the **real goal**, not merely the written goal. The written Anchor is a working commitment,
+not a sacred record. When enough evidence suggests the user's real goal or priority has changed,
+diagnose it and ask for confirmation. Never silently rewrite the goal based on recency, a single
+aside, model enthusiasm, or another skill's workflow.
+
 ## Mission
 
-1. **Hold the anchor** — keep Mode, Goal, Done-when, Boundaries, and Next action explicit.
+1. **Hold the real goal** — keep Mode, Goal, Done-when, Boundaries, and Next action explicit while
+   checking whether the written Anchor still matches the user's actual priority.
 2. **Name drift** — when the thread stops serving the active goal, surface that instead of
    silently following the latest tangent.
-3. **Use the GAP lens lightly** — compare requirement, current reality, evidence, decisions, and
+3. **Diagnose goal change** — infer likely re-anchors from repeated, evidence-backed signals, then
+   ask the user to confirm primary-goal vs branch-goal vs tangent.
+4. **Use the GAP lens lightly** — compare requirement, current reality, evidence, decisions, and
    next actions without forcing a heavy ledger for every issue.
-4. **Model the domain lightly** — use DDD ideas as a cognitive aid: ubiquitous language,
+5. **Model the domain lightly** — use DDD ideas as a cognitive aid: ubiquitous language,
    bounded contexts, core objects, capabilities, scenarios, and open questions.
-5. **Bridge task skills** — Lodestar decides what the work is for; task skills decide how to do
+6. **Bridge task skills** — Lodestar decides what the work is for; task skills decide how to do
    the work.
 
 ## Authority
 
 For project goals, current state, domain language, decisions, and open gaps/questions, `.lodestar/` is the
-scoped project orientation source. When it differs from generic CLAUDE.md / AGENTS.md guidance,
-prefer Lodestar for goal alignment while still honoring generic environment conventions.
+scoped project orientation source. It is authoritative enough to resist recency drift, but not
+infallible: stale Anchors must be challenged with evidence. When Lodestar differs from generic
+CLAUDE.md / AGENTS.md guidance, prefer Lodestar for goal alignment while still honoring generic
+environment conventions.
 
 Hooks can make Lodestar more reliable, but they are **opt-in**. A pointer block is advisory;
 Claude Code / Codex hooks provide lifecycle support when installed and trusted.
@@ -46,7 +58,8 @@ constraints, is something a strong model does unaided — do not over-invest the
 pilot evals also found that flat summaries beat agent-maintained tree/GAP-ledger structures, even
 under forced memory consolidation. Keep Lodestar state flat by default; use structured GAP entries
 only for material conflicts, and treat tool-maintained ledgers as a separate untested design. When
-the goal changes, **re-anchor** (rewrite `anchor.md`) so the *new* goal is what gets re-injected.
+the evidence shows the real goal may have changed, propose a **re-anchor** so the user can confirm
+whether to rewrite `anchor.md`, raise a branch goal's priority, or park a tangent.
 
 ## Files
 
@@ -80,6 +93,10 @@ refuse to persist the secret and record only the safe intent.
   and open questions.
 - **Directive**: a meaningful user instruction that changes goal, boundary, state, domain,
   decision, GAP, or action.
+- **Goal-change Signal**: evidence that the written Anchor may no longer match the user's real
+  priority, such as repeated attention, changed acceptance criteria, or invalidated assumptions.
+- **Re-anchor Proposal**: an evidence-backed question that asks whether to change the primary Goal,
+  raise a branch goal's priority, or park a tangent.
 - **GAP**: a lightweight lens for comparing requirement vs current/practice reality, backed by
   evidence and a next action when the conflict is material.
 - **Evidence**: file, command output, commit, issue, web link, user quote, observed behavior, or
@@ -114,7 +131,30 @@ the action still serves the active Goal.
 - **Productive tangent**: push a Return-stack entry, do the tangent, then return.
 - **Drift**: surface it: "We've drifted from <goal> into <topic>. Park this or re-anchor?"
 
-Re-anchoring is a decision. Update `anchor.md` and log the directive; never silently slide.
+Goal-change diagnosis: the agent may infer a likely goal change, but must not silently rewrite the
+Goal. A single aside is not enough. Look for multiple or strong signals:
+
+- repeated user attention to a different outcome;
+- changed Done-when, constraints, or out-of-scope boundaries;
+- the old Next action no longer reduces the most important gap;
+- user corrections that demote the old goal or elevate a branch goal;
+- external evidence that invalidates the anchored path;
+- a task skill's procedure is still correct but no longer serves the real priority.
+
+When the evidence threshold is met, pause automatic execution and ask a confirmation question:
+
+```text
+Based on <evidence>, I infer your primary goal may have changed from <old goal> to <new goal>.
+Please confirm whether to:
+- re-anchor the primary goal to <new goal>;
+- keep <old goal> primary and make <new goal> the higher-priority branch goal;
+- treat <new goal> as a tangent and return to <old goal>.
+```
+
+If the primary Goal changes, rewrite `anchor.md` and log a Decision. If only a branch goal becomes
+the best path under the same primary Goal, update Next action / Return-stack / State without
+rewriting the primary Goal. If it is a tangent, park it or answer briefly and return. Re-anchoring
+is a decision; never silently slide.
 
 ## Protocol 1 — Read
 

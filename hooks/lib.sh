@@ -44,6 +44,10 @@ EOF
 SILENT orientation context: use it to steer your work. Do NOT echo, quote, restate, or narrate it,
 and never mention "Lodestar" or "anchor" in any user-facing output or deliverable. Produce only the
 deliverable — do not restate the goal or narrate your process as a preamble.
+Hold the real goal, not merely the written goal. The Anchor is a working commitment: resist recency
+noise, but if repeated or strong evidence suggests the real goal or priority changed, ask
+whether to re-anchor the primary Goal, raise the priority of a branch goal, or park the tangent. Never
+silently rewrite the Anchor from one or two side remarks.
 Project root: $root
 Authoritative state dir: .lodestar/
 Read order: anchor.md -> domain.md -> state.md -> log.md
@@ -69,7 +73,9 @@ handoff_excerpt() {
 SILENT orientation context: use it to steer; do NOT echo, quote, or restate it, never mention
 "Lodestar" or "anchor" in user-facing output, and produce only the deliverable without a
 goal-restating preamble. Before acting, identify which Goal or open gap/question your work
-serves; after acting, return state, evidence, decision, material gap/question, and next-action updates.
+serves. If evidence suggests the real goal or priority has changed, ask whether to re-anchor the
+primary Goal, raise the priority of a branch goal, or park the tangent. After acting, return state,
+evidence, decision, material gap/question, and next-action updates.
 
 EOF
   file_excerpt "ANCHOR" "$state_dir/anchor.md" 60

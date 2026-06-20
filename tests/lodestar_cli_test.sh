@@ -164,18 +164,29 @@ test_hook_scripts_emit_expected_context() {
   stop="$(cd "$dir" && "$ROOT/hooks/stop" <<< '{"hook_event_name":"Stop"}')"
 
   grep -Fq "LODESTAR_CONTEXT" <<<"$session" || fail "SessionStart context missing: $session"
+  grep -Fq "real goal" <<<"$session" || fail "SessionStart context missing real-goal rule: $session"
   grep -Fq "LODESTAR_DRIFT_CHECK" <<<"$pretool" || fail "PreToolUse context missing: $pretool"
+  grep -Fq "re-anchor the primary Goal" <<<"$pretool" || fail "PreToolUse context missing re-anchor proposal rule: $pretool"
   grep -Fq "systemMessage" <<<"$precompact" || fail "PreCompact JSON missing systemMessage: $precompact"
+  grep -Fq "re-anchor proposal" <<<"$precompact" || fail "PreCompact JSON missing re-anchor proposal handoff: $precompact"
   grep -Fq "LODESTAR_HANDOFF" <<<"$subagent" || fail "SubagentStart handoff missing: $subagent"
+  grep -Fq "priority of a branch goal" <<<"$subagent" || fail "SubagentStart handoff missing branch-priority rule: $subagent"
   grep -Fq "systemMessage" <<<"$stop" || fail "Stop JSON missing systemMessage: $stop"
 }
 
 test_protocol_documents_privacy_domain_and_skill_bridge() {
   assert_file_contains "$ROOT/skills/lodestar/SKILL.md" "Privacy Boundary"
   assert_file_contains "$ROOT/skills/lodestar/SKILL.md" "Domain Modeler"
+  assert_file_contains "$ROOT/skills/lodestar/SKILL.md" "Hold the **real goal**"
+  assert_file_contains "$ROOT/skills/lodestar/SKILL.md" "Goal-change diagnosis"
   assert_file_contains "$ROOT/skills/lodestar/references/project-pointer.md" "Do not write secrets"
+  assert_file_contains "$ROOT/skills/lodestar/references/project-pointer.md" "Hold the real goal"
+  assert_file_contains "$ROOT/skills/lodestar/references/anti-drift.md" "Goal-Change Signals"
   assert_file_contains "$ROOT/skills/lodestar/references/ontology.md" "Domain Modeler"
+  assert_file_contains "$ROOT/skills/lodestar/references/ontology.md" "Re-anchor Proposal"
   assert_file_contains "$ROOT/skills/lodestar/references/skill-bridge.md" "Superpowers"
+  assert_file_contains "$ROOT/skills/lodestar/references/templates/minimal/anchor.md" "re-anchor?:<evidence>"
+  assert_file_contains "$ROOT/skills/lodestar/references/templates/full/anchor.md" "re-anchor?:<evidence>"
 }
 
 test_no_old_state_namespace_literal() {

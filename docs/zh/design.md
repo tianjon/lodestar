@@ -10,6 +10,12 @@ Lodestar 的形状接近“领域核心 + 适配器”（ports-and-adapters / an
 
 Blueprint 和 Goal 是设定点，State 是测量值，GAP 是需要被缩小的误差信号。它们不是四篇互不相干的笔记，而是一个负反馈回路。设计里的其他部分都服务于这个回路。
 
+## Anchor 有权威，但不是神谕
+
+Lodestar 的第一原则是守住**真实目标**，而不只是守住写下来的目标。书面 Anchor 是一个工作承诺，用来抵抗近因漂移，
+但它也可能过期。当重复或强证据表明用户真实优先级已经变化时，agent 应当把这个推断说出来，并询问是 re-anchor
+首要目标、提升某个分支目标的优先级，还是停放这个旁支。它不应静默追随最新旁支，也不应静默改写 Anchor。
+
 ## 项目状态
 
 ```text
@@ -29,7 +35,8 @@ Blueprint 和 Goal 是设定点，State 是测量值，GAP 是需要被缩小的
 
 - **SessionStart** 把 anchor 注入上下文，不是“请去读它”，而是让文本本身到场。
 - **PreCompact** 在有损摘要之前提醒 agent 持久化活跃目标、差距、决策和下一步行动。
-- **PreToolUse** 在会修改状态的行动前做漂移检查：这一步是否推进 done-when 或某个命名 GAP？
+- **PreToolUse** 在会修改状态的行动前做漂移检查：这一步是否推进 done-when 或某个命名 GAP？证据是否表明真实目标
+  已经变化、需要用户确认？
 - **SubagentStart / SubagentStop** 把 handoff 带进全新子代理，并在返回时收束结果。
 - **Stop** 在结束前提醒 agent 把变化过的目标、边界、决策、GAP 反映回状态。
 

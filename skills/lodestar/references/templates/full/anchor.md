@@ -11,8 +11,9 @@ The smallest always-loaded control surface. Keep this file short even in full mo
 - 当前差距/问题 Active gap/question: <flat note or none>
 - 下一步 Next action: <ACT id or one concrete next action that serves the goal>
 - 返回点 Return-stack: <parked tangents, newest last; empty when on the main line>
-- 漂移检查 Drift check: <ISO timestamp> — on-track
+- 漂移检查 Drift check: <ISO timestamp> — on-track | tangent:<topic> | drift:<topic> | re-anchor?:<evidence>
 
 ---
 
-If Goal cannot be one sentence or Done-when is not observable, stay in `clarify`.
+If Goal cannot be one sentence or Done-when is not observable, stay in `clarify`. If evidence
+suggests the real goal changed, ask before re-anchoring.

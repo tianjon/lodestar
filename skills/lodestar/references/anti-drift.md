@@ -5,8 +5,10 @@ The deep version of Protocol 0. Read this when a session is long, branching, or 
 ## Why Conversations Drift
 
 Each new message exerts a local pull. With no anchor, the agent greedily optimizes for the most
-recent input, and the original goal decays turn by turn. The user is allowed to wander. The
-agent's job is to hold the line and remember where the work was headed.
+recent input, and the original goal decays turn by turn. But the opposite failure is real too: a
+stale written goal can trap the agent after the user's real priority has changed. The user is
+allowed to wander and allowed to change direction. The agent's job is to hold the real goal: resist
+recency noise, detect evidence-backed goal change, and never silently rewrite the Anchor.
 
 ## The Anchor
 
@@ -42,6 +44,7 @@ Before any non-trivial action, ask: **does this still serve the active Goal?**
 | **On-track** | the work visibly advances Done-when | proceed silently |
 | **Productive tangent** | useful but not the goal | push a Return-stack entry, do it, then pop back |
 | **Drift** | no clear link to Done-when or boundaries | stop and surface it |
+| **Likely goal change** | repeated/strong evidence that the Anchor no longer matches the real priority | propose a re-anchor and ask for confirmation |
 
 ### Drift Signals
 
@@ -52,7 +55,22 @@ Before any non-trivial action, ask: **does this still serve the active Goal?**
 - A task skill is being followed correctly, but no longer serves the active Goal.
 - The Domain Map suggests you crossed into a different bounded context without naming it.
 
-## Surfacing Drift
+## Goal-Change Signals
+
+Do not re-anchor from a single "also" or "by the way." Infer a likely goal change only from enough
+evidence to beat recency bias:
+
+- the user repeatedly returns to a different outcome;
+- Done-when, constraints, or out-of-scope boundaries changed;
+- the old Next action no longer reduces the most important gap;
+- the user corrects your direction or demotes the old goal;
+- a branch goal now blocks or dominates the primary goal;
+- external evidence invalidates the anchored path.
+
+If the evidence is suggestive but not enough, ask a light clarification or park the branch. If the
+evidence is enough, propose a re-anchor.
+
+## Surfacing Drift and Goal Change
 
 When you detect drift, name it plainly:
 
@@ -60,9 +78,19 @@ When you detect drift, name it plainly:
 > re-anchor on <topic> as the new goal.
 
 - **Park**: push onto Return-stack, return to the anchored goal.
-- **Re-anchor**: update Anchor, record a directive, and create/update a `DEC-...` decision.
+- **Re-anchor proposal**: explain the evidence and ask the user to confirm one of:
+  primary-goal change, higher-priority branch goal, or tangent/park.
+- **Re-anchor**: after confirmation or an unambiguous user correction, update Anchor, record a
+  directive, and create/update a `DEC-...` decision.
 
-The failure mode Lodestar exists to prevent is the silent slide.
+Example:
+
+> Based on <evidence>, I infer your primary goal may have changed from **<old goal>** to
+> **<new goal>**. Should I re-anchor to <new goal>, keep <old goal> primary and treat <new goal> as
+> the higher-priority branch, or park <new goal> and return?
+
+The failure mode Lodestar exists to prevent is not only the silent slide away from the Anchor; it is
+also silent obedience to a stale Anchor when the real goal has moved.
 
 ## Return Stack
 
@@ -78,8 +106,9 @@ When a tangent finishes, pop the top entry and announce the return.
 
 ## Session Resume
 
-On resume, after reading the Anchor, restate the goal in one line before diving in:
+On resume, after reading the Anchor, silently check whether it is stale before diving in:
 
-> Resuming on <goal>; done-when is <criteria>; <N> tangents parked.
+- If Anchor still fits the user's recent evidence, proceed without a goal-restating preamble.
+- If Anchor may be stale, surface the evidence and ask whether to re-anchor.
 
-This catches stale anchors before work continues.
+This catches stale anchors without turning orientation into user-visible ceremony.
