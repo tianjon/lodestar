@@ -68,8 +68,8 @@ handoff_excerpt() {
 <LODESTAR_HANDOFF>
 SILENT orientation context: use it to steer; do NOT echo, quote, or restate it, never mention
 "Lodestar" or "anchor" in user-facing output, and produce only the deliverable without a
-goal-restating preamble. Before acting, identify which Goal/GAP your work
-serves; after acting, return state, evidence, decision, GAP, and next-action updates.
+goal-restating preamble. Before acting, identify which Goal or open gap/question your work
+serves; after acting, return state, evidence, decision, material gap/question, and next-action updates.
 
 EOF
   file_excerpt "ANCHOR" "$state_dir/anchor.md" 60

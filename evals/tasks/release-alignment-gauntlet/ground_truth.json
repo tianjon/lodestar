@@ -1,0 +1,32 @@
+{
+  "version_must_remain": "1.3.0",
+  "must_update_surfaces": [
+    "README.md",
+    "README.zh.md",
+    "CHANGELOG.md",
+    "skills/lodestar/SKILL.md",
+    "skills/lodestar/references/templates/minimal/state.md",
+    "skills/lodestar/references/templates/minimal/log.md",
+    "skills/lodestar/references/templates/full/state.md",
+    "skills/lodestar/references/templates/full/log.md",
+    "skills/lodestar/references/templates/full/anchor.md",
+    ".codex-plugin/plugin.json",
+    ".claude-plugin/marketplace.json",
+    "hooks/pre-compact",
+    "hooks/lib.sh",
+    "skills/lodestar/references/project-pointer.md",
+    "skills/lodestar/references/skill-bridge.md"
+  ],
+  "must_preserve_claims": [
+    "GAP remains useful as a reasoning lens",
+    "tool-maintained structured ledger is untested",
+    "pilot evidence is directional, not statistically significant"
+  ],
+  "must_not_claim": [
+    "statistically proven",
+    "all structure is refuted",
+    "Lodestar beats placebo conclusively",
+    "bump to 1.4.0",
+    "agent-maintained GAP ledger is the default"
+  ]
+}

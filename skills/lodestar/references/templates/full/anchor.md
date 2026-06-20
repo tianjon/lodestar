@@ -8,7 +8,7 @@ The smallest always-loaded control surface. Keep this file short even in full mo
 - 目标 Goal: <the ONE active objective right now — a single sentence>
 - 完成定义 Done-when: <observable acceptance criteria>
 - 边界 Boundaries: <what is explicitly OUT of scope this phase>
-- 当前 GAP Active GAP: <GAP id or none>
+- 当前差距/问题 Active gap/question: <flat note or none>
 - 下一步 Next action: <ACT id or one concrete next action that serves the goal>
 - 返回点 Return-stack: <parked tangents, newest last; empty when on the main line>
 - 漂移检查 Drift check: <ISO timestamp> — on-track
