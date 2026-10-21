@@ -37,7 +37,7 @@ The real experiment should add agent arms:
 | B Flat Lodestar | anchor + flat state/log | Current recommended path. |
 | C Placebo | equal-token FOCUS.md | Tests whether value is just reminding. |
 | D Agent Ledger | agent-maintained GAP ledger | Tests heavy structure maintenance cost. |
-| E Tool Ledger | deterministic JSON ledger + validated updates | Tests whether structure works when tool-maintained. |
+| E Validated JSON | agent-maintained JSON ledger + syntax validation | Tests a different agent-authored representation; deterministic maintenance remains untested. |
 
 ## Cold-Start Turns
 

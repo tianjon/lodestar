@@ -4,7 +4,7 @@
 
 Lodestar is shaped as a domain core plus adapters (ports-and-adapters / anti-corruption layer).
 The **core** is plain Markdown state and protocols that any agent can read and execute. The
-**enforcement** — lifecycle hooks — is an adapter written once per harness (Claude Code, Codex).
+**context delivery** — lifecycle hooks — is an adapter written once per harness (Claude Code, Codex).
 
 The rule that keeps it portable: **the core never depends on the adapter.** If hooks are absent or
 a runtime has no hook system, Lodestar degrades to a readable protocol, not a broken tool. Hooks
@@ -39,7 +39,7 @@ silently rewrite the Anchor.
 `log.md` is the fast, episodic tier; `state.md` is the slow, semantic tier. Detail flows from log
 to state to archive as it cools. The anchor stays pinned and tiny so re-reading it is always cheap.
 
-## Enforcement is the crux
+## External triggers improve delivery
 
 A protocol that the drifting model must *remember* to run is weak. The same cognitive process that
 drifts is being asked to catch the drift — a self-reference that fails precisely when it is needed
@@ -47,13 +47,14 @@ most. Hooks break the self-reference by triggering **externally**, independent o
 remembers:
 
 - **SessionStart** injects the anchor into context — not "please read it," but the text itself.
-- **PreCompact** reminds the agent to persist the active goal, gaps, decisions, and next action
-  *before* the lossy summary discards them.
+- **PreCompact** cannot ask the model to save. Material changes must be recorded during work;
+  new configs omit this event, and the legacy entry point does nothing.
 - **PreToolUse** runs a drift check before a mutating action: does this advance done-when or a
   named gap, or does the evidence suggest the real goal has changed and needs confirmation?
-- **SubagentStart / SubagentStop** carry the handoff into a fresh subagent and recapture its
-  return.
-- **Stop** nudges the agent to reflect changed goal / boundary / decision / gap back into state.
+- **SubagentStart** loads context; **SubagentStop** requests one handoff pass from the child.
+- **PostToolUse** reminds the parent to capture completed agent results.
+- **Stop** requests at most one continuation to save missing material state, guarded by
+  `stop_hook_active`. It does not prove that saving occurred.
 
 Hooks are **opt-in, reviewable, and never silently mutate project files.** They load context and
 remind; they do not edit on your behalf.
@@ -77,3 +78,5 @@ produces project-fitting work instead of a generic template. It **rejects** tact
 Project state is local-private by default. Secrets, credentials, personal data, and private URLs
 are redacted before they are ever written; `.lodestar/` is git-ignored unless a team explicitly
 opts into sharing reviewed, redacted state.
+
+See [hook behavior and compatibility](hooks.md) for delivery budgets and configuration ownership.

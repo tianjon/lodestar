@@ -24,12 +24,26 @@ jobs:
           bash -n hooks/lib.sh
           bash -n hooks/session-start
           bash -n hooks/pre-tool-use
+          bash -n hooks/post-tool-use
           bash -n hooks/pre-compact
           bash -n hooks/subagent-start
           bash -n hooks/subagent-stop
           bash -n hooks/stop
           bash -n hooks/run-hook.cmd
           bash -n tests/lodestar_cli_test.sh
+          bash -n evals/run.sh
+          for script in evals/tasks/release-alignment-gauntlet/*.sh; do
+            bash -n "$script"
+          done
 
       - name: CLI and installer smoke tests
         run: tests/lodestar_cli_test.sh
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Hook, YAML, and evaluation contract tests
+        run: |
+          python -m pip install -r tests/requirements.txt
+          python tests/contracts_test.py

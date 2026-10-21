@@ -1,14 +1,6 @@
 #!/usr/bin/env bash
-set -euo pipefail
-
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]:-$0}")" && pwd)"
-# shellcheck source=hooks/lib.sh
-source "$SCRIPT_DIR/lib.sh"
-
-root="$(project_root)"
-
-if [ ! -d "$root/.lodestar" ]; then
-  exit 0
-fi
-
-emit_system_message "Lodestar: before compaction, make sure .lodestar/log.md and .lodestar/state.md can hand off the active Goal, open gaps/questions, decisions, evidence, next action, and any evidence-backed re-anchor proposal or branch-priority change."
+# Compatibility entry point for previously installed configs. PreCompact cannot ask the
+# model to save Goal, open gaps/questions, decisions, evidence, next action, or a re-anchor
+# proposal. Persist changes during work and use the guarded Stop handoff instead.
+# Do not summarize private content, rewrite project files, or block automatic compaction.
+exit 0

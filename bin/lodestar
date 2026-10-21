@@ -8,7 +8,7 @@
 #   lodestar status [dir]
 #       Show .lodestar file sizes, current anchor, and hook status.
 #
-#   lodestar hooks install|status|uninstall [dir] [--target claude|codex|both] [--scope project|user]
+#   lodestar hooks print|install|status|uninstall [dir] [--target claude|codex|both] [--scope project|user]
 #       Manage opt-in lifecycle hook configs. Project scope is the default.
 #
 #   lodestar install [...]
@@ -248,10 +248,10 @@ cmd_status() {
 }
 
 print_hooks_json() {
-  local runner="$1" session_cmd pretool_cmd precompact_cmd subagent_cmd stop_cmd subagent_stop_cmd
+  local runner="$1" session_cmd pretool_cmd posttool_cmd subagent_cmd stop_cmd subagent_stop_cmd
   session_cmd="$(json_escape "$HOOK_MARKER $(shell_quote "$runner") session-start")"
   pretool_cmd="$(json_escape "$HOOK_MARKER $(shell_quote "$runner") pre-tool-use")"
-  precompact_cmd="$(json_escape "$HOOK_MARKER $(shell_quote "$runner") pre-compact")"
+  posttool_cmd="$(json_escape "$HOOK_MARKER $(shell_quote "$runner") post-tool-use")"
   subagent_cmd="$(json_escape "$HOOK_MARKER $(shell_quote "$runner") subagent-start")"
   subagent_stop_cmd="$(json_escape "$HOOK_MARKER $(shell_quote "$runner") subagent-stop")"
   stop_cmd="$(json_escape "$HOOK_MARKER $(shell_quote "$runner") stop")"
@@ -283,14 +283,14 @@ print_hooks_json() {
         ]
       }
     ],
-    "PreCompact": [
+    "PostToolUse": [
       {
-        "matcher": "manual|auto",
+        "matcher": "Agent|Task|wait|wait_agent",
         "hooks": [
           {
             "type": "command",
-            "command": "$precompact_cmd",
-            "statusMessage": "Preparing Lodestar handoff"
+            "command": "$posttool_cmd",
+            "statusMessage": "Capturing Lodestar subagent return"
           }
         ]
       }
@@ -340,11 +340,19 @@ print_claude_settings_json() {
   print_hooks_json "$runner"
 }
 
+require_owned_hook_file() {
+  local path="$1" runtime="$2" runner="$3"
+  # A marker owns a command, not an entire settings file. Without a JSON parser,
+  # only byte-identical generated configs are safe to replace or remove.
+  [ ! -L "$path" ] || die "$runtime config is a symlink at $path; left untouched"
+  if [ -e "$path" ] && ! cmp -s "$path" <(print_hooks_json "$runner"); then
+    die "$runtime config at $path differs from this version's generated file; left untouched. Generate a reference with 'lodestar hooks print', then manually merge/remove only entries whose command contains $HOOK_MARKER. Preserve permissions, env, and other hooks. Older generated configs also require this review."
+  fi
+}
+
 write_managed_hook_file() {
   local path="$1" runtime="$2" runner="$3"
-  if [ -f "$path" ] && ! grep -Fq "$HOOK_MARKER" "$path"; then
-    die "$runtime hook config already exists at $path and is not managed by Lodestar; merge manually or remove it first"
-  fi
+  require_owned_hook_file "$path" "$runtime" "$runner"
   mkdir -p "$(dirname "$path")"
   if [ "$runtime" = "Claude" ]; then
     print_claude_settings_json "$runner" > "$path"
@@ -357,6 +365,7 @@ write_managed_hook_file() {
 remove_managed_hook_file() {
   local path="$1" runtime="$2"
   if [ -f "$path" ] && grep -Fq "$HOOK_MARKER" "$path"; then
+    require_owned_hook_file "$path" "$runtime" "$HOOK_RUNNER"
     rm -f "$path"
     echo "  ✓ $runtime hooks removed from $path"
   elif [ -f "$path" ]; then
@@ -379,6 +388,13 @@ install_hooks() {
   fi
   runner="$HOOK_RUNNER"
 
+  # Preflight both targets before changing either one.
+  if [ "$target" = codex ] || [ "$target" = both ]; then
+    require_owned_hook_file "$base/.codex/hooks.json" "Codex" "$runner"
+  fi
+  if [ "$target" = claude ] || [ "$target" = both ]; then
+    require_owned_hook_file "$base/.claude/settings.json" "Claude" "$runner"
+  fi
   echo "Lodestar hooks install (target: $target, scope: $scope)"
   if [ "$target" = "codex" ] || [ "$target" = "both" ]; then
     write_managed_hook_file "$base/.codex/hooks.json" "Codex" "$runner"
@@ -393,6 +409,14 @@ uninstall_hooks() {
   case "$target" in claude|codex|both) ;; *) die "--target must be claude, codex, or both" ;; esac
   case "$scope" in project|user) ;; *) die "--scope must be project or user" ;; esac
   if [ "$scope" = "project" ]; then base="$dir"; else base="$HOME"; fi
+  local path runtime
+  for runtime in codex claude; do
+    [ "$target" = both ] || [ "$target" = "$runtime" ] || continue
+    if [ "$runtime" = codex ]; then path="$base/.codex/hooks.json"; else path="$base/.claude/settings.json"; fi
+    if [ -L "$path" ] || { [ -f "$path" ] && grep -Fq "$HOOK_MARKER" "$path"; }; then
+      require_owned_hook_file "$path" "$runtime" "$HOOK_RUNNER"
+    fi
+  done
   echo "Lodestar hooks uninstall (target: $target, scope: $scope)"
   if [ "$target" = "codex" ] || [ "$target" = "both" ]; then
     remove_managed_hook_file "$base/.codex/hooks.json" "Codex"
@@ -444,13 +468,14 @@ parse_hooks_args() {
 
 cmd_hooks() {
   local action="${1:-}"
-  [ -n "$action" ] || die "hooks requires install, status, or uninstall"
+  [ -n "$action" ] || die "hooks requires print, install, status, or uninstall"
   shift || true
   parse_hooks_args "$@"
   local dir="$PARSED_HOOK_DIR"
   dir="$(cd "$dir" && pwd)"
 
   case "$action" in
+    print) print_hooks_json "$HOOK_RUNNER" ;;
     install) install_hooks "$dir" "$PARSED_HOOK_TARGET" "$PARSED_HOOK_SCOPE" ;;
     uninstall) uninstall_hooks "$dir" "$PARSED_HOOK_TARGET" "$PARSED_HOOK_SCOPE" ;;
     status)
@@ -463,7 +488,7 @@ cmd_hooks() {
       fi
       echo "  note        Codex non-managed hooks require /hooks trust after install or change"
       ;;
-    *) die "hooks action must be install, status, or uninstall" ;;
+    *) die "hooks action must be print, install, status, or uninstall" ;;
   esac
 }
 

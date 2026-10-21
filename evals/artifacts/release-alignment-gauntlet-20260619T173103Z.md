@@ -93,3 +93,11 @@ plumbing check, not a solver.
 
 Follow-up: `release-alignment-gauntlet-seed2-core-20260620T053452Z.md` records an isolated A/B/C
 seed 2 run and runner hardening discovered after this pilot.
+
+## Label correction — 2026-10-21
+
+The historical E labels above are retained to match the original artifacts. Inspection of the
+runner shows the helper only executed `jq empty`; the agent still authored and maintained entries.
+Read E as **agent-maintained JSON with syntax validation**, not deterministic tool maintenance.
+The earlier sentence saying E exercised tool-maintained maintenance is withdrawn. This correction
+changes the interpretation, not the recorded scores, and no new model run was performed.

@@ -161,17 +161,16 @@ test_hook_scripts_emit_expected_context() {
   pretool="$(cd "$dir" && "$ROOT/hooks/pre-tool-use" <<< '{"hook_event_name":"PreToolUse"}')"
   precompact="$(cd "$dir" && "$ROOT/hooks/pre-compact" <<< '{"hook_event_name":"PreCompact"}')"
   subagent="$(cd "$dir" && "$ROOT/hooks/subagent-start" <<< '{"hook_event_name":"SubagentStart"}')"
-  stop="$(cd "$dir" && "$ROOT/hooks/stop" <<< '{"hook_event_name":"Stop"}')"
+  stop="$(cd "$dir" && "$ROOT/hooks/stop" <<< '{"hook_event_name":"Stop","stop_hook_active":false}')"
 
   grep -Fq "LODESTAR_CONTEXT" <<<"$session" || fail "SessionStart context missing: $session"
   grep -Fq "real goal" <<<"$session" || fail "SessionStart context missing real-goal rule: $session"
   grep -Fq "LODESTAR_DRIFT_CHECK" <<<"$pretool" || fail "PreToolUse context missing: $pretool"
   grep -Fq "re-anchor the primary Goal" <<<"$pretool" || fail "PreToolUse context missing re-anchor proposal rule: $pretool"
-  grep -Fq "systemMessage" <<<"$precompact" || fail "PreCompact JSON missing systemMessage: $precompact"
-  grep -Fq "re-anchor proposal" <<<"$precompact" || fail "PreCompact JSON missing re-anchor proposal handoff: $precompact"
+  [ -z "$precompact" ] || fail "PreCompact must not emit an ineffective save reminder: $precompact"
   grep -Fq "LODESTAR_HANDOFF" <<<"$subagent" || fail "SubagentStart handoff missing: $subagent"
   grep -Fq "priority of a branch goal" <<<"$subagent" || fail "SubagentStart handoff missing branch-priority rule: $subagent"
-  grep -Fq "systemMessage" <<<"$stop" || fail "Stop JSON missing systemMessage: $stop"
+  grep -Fq '"decision": "block"' <<<"$stop" || fail "Stop continuation missing: $stop"
 }
 
 test_protocol_documents_privacy_domain_and_skill_bridge() {

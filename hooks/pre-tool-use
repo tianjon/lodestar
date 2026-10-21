@@ -15,8 +15,10 @@ fi
 anchor_brief="$(grep -E 'Mode|Goal|Done-when' "$state_dir/anchor.md" 2>/dev/null | head -6 || true)"
 context="$(cat <<EOF
 <LODESTAR_DRIFT_CHECK>
-SILENT orientation context: use it to steer, never echo or restate it, never mention Lodestar, and
-produce only the deliverable without a goal-restating preamble.
+Use this context silently without a goal-restating preamble; explain it if the user asks.
+Persist material goal, decision, evidence, and next-action changes as work progresses. Do not
+wait for PreCompact to save them. Follow an explicit user goal correction directly; confirmation
+is for inferred changes, not instructions the user has already given.
 Before this mutating/non-trivial tool call, silently compare the action with the active goal below.
 Proceed if it advances Done-when or a named GAP; if it is a productive tangent, keep a Return-stack
 entry; if it drifts, surface the mismatch before continuing.

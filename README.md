@@ -39,7 +39,7 @@ facts"* and *"execute a workflow"*: it tells the agent **why this work exists, w
 of scope, and what to do next**. Its first principle is to hold the **real goal**, not merely the
 written goal: resist recency noise, but proactively flag evidence that the user's priority has
 changed. It does this with zero runtime dependencies (pure Markdown + protocol, plus optional
-lifecycle hooks for enforcement).
+lifecycle hooks for context delivery).
 
 ```bash
 git clone https://github.com/tianjon/lodestar.git ~/.lodestar && cd ~/.lodestar && ./install.sh
@@ -79,7 +79,7 @@ where drift usually happens**.
 | 🗺️ **Lightweight domain model** | `.lodestar/domain.md` captures terms, bounded contexts, core objects, capabilities, and open questions. |
 | 📊 **Flat state & decisions** | `.lodestar/state.md` keeps current facts, open questions/gaps, evidence, and decision summaries visible without a heavy ledger. |
 | 📝 **Meaningful log** | `.lodestar/log.md` records goal, evidence, decision, domain, and action changes — without becoming a transcript. |
-| 🪝 **Lifecycle hooks** | Optional Claude Code & Codex hooks inject context on SessionStart, PreToolUse, PreCompact, SubagentStart, SubagentStop, and Stop. |
+| 🪝 **Lifecycle hooks** | Optional Claude Code & Codex hooks load context, prompt parent handoffs, and request one guarded save pass at Stop. |
 | 📦 **Portable skill** | Pure Markdown + bash. No runtime dependency, no lock-in to one agent harness. |
 
 ## 🔁 How Lodestar Works
@@ -97,7 +97,7 @@ flowchart LR
 
   S["SessionStart"] -. injects .-> C
   T["PreToolUse"] -. drift check .-> F
-  P["PreCompact"] -. handoff .-> H
+  P["Stop"] -. handoff .-> H
   U["SubagentStart/Stop"] -. carry context .-> H
 ```
 
@@ -154,7 +154,7 @@ This creates:
 
 Start with one sentence for `Goal`, an observable `Done-when`, clear `Boundaries`, and one `Next action`.
 
-### 3. Turn on hooks when the project needs enforcement
+### 3. Turn on lifecycle reminders
 
 ```bash
 ~/.lodestar/bin/lodestar init --hooks both
@@ -163,6 +163,11 @@ Start with one sentence for `Goal`, an observable `Done-when`, clear `Boundaries
 
 Hooks are opt-in and reviewable. Codex users should review and trust configured hooks with `/hooks` before
 expecting them to run.
+
+Hook configs are replaced or removed only when byte-identical to this version's generated file.
+Mixed settings, symlinks, and older configs are preserved. Use `lodestar hooks print` to generate
+a reference for manual merging; keep permissions, environment settings, and other hooks.
+See [hook behavior and compatibility](docs/en/hooks.md), including the one-pass Stop overhead.
 
 ## 🎯 When To Use Lodestar
 
@@ -201,16 +206,18 @@ Full docs live in [`docs/`](docs/README.md) ([中文文档](docs/zh/README.md)):
 ## 🧪 Evaluation
 
 Lodestar ships a reproducible [eval harness](evals/README.md) — three arms (bare notes vs Lodestar vs an
-equal-volume placebo reminder) — and reports results honestly, null and negative included. The pilot
+reminder baseline) — and reports results honestly, null and negative included. The portable runner
+now matches cold-start injection timing and records byte exposure, but does not claim token matching
+or native-hook integration. The pilot
 [findings](evals/FINDINGS.md) so far:
 
 - ✅ **Supported:** persisting information that *changes* across a context reset (a goal that shifts mid-run,
   decisions juggled across an interleaved multi-thread chat). The bare arm loses it; re-injected orientation keeps it.
-- ✅ **Best default representation: flat summaries and append-only logs.** Across both no-merge and
+- ✅ **Recommended default representation: flat summaries and append-only logs.** Across both no-merge and
   forced-consolidation pilots, flat notes beat agent-maintained structured memory. In Run 8, the
   GAP ledger came last even in the regime it was designed for: two forced merges, a status reopen,
   and a moving core goal.
-- ❌ **Refuted for agent-maintained memory:** do not ask the agent to maintain a heavy GAP ledger or
+- ❌ **Directionally refuted for agent-maintained memory:** do not ask the agent to maintain a heavy GAP ledger or
   nested/tree state by default. GAP remains useful as a reasoning lens; deterministic tool-maintained
   structure is a different, still-untested system.
 - ❌ **Not claimed:** "keep the model on a fixed goal" or "honor static constraints" — a strong model does those

@@ -56,6 +56,10 @@ DecisionRefs:
 ReturnRequest:
 ```
 
+The SubagentStop hook speaks to the child, not the parent. The parent receives the result through
+its agent-return tool; a PostToolUse reminder can help it capture updates. Subagents should return
+proposed updates rather than overwrite shared state unless explicitly assigned file ownership.
+
 When it returns, capture state, evidence, decisions, material gaps/questions, domain updates, and next action before
 they disappear into the parent context.
 

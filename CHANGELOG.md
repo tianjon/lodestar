@@ -2,6 +2,21 @@
 
 ## Unreleased
 
+- Fixed YAML frontmatter parsing and added parser-backed CI coverage (test-only PyYAML).
+- Hook install/uninstall now preserve mixed, symlinked, and older configs; only exact generated
+  files are owned. Both targets are preflighted, and `hooks print` supports manual merging.
+- Discover the nearest initialized project within the current Git worktree. Inject bounded
+  head/tail context including domain and log, with explicit omission paths and read instructions.
+- Replace user-only handoff notices with guarded Stop/SubagentStop continuations, add parent
+  PostToolUse feedback, and retire the ineffective PreCompact save reminder. Hooks remain read-only.
+- Follow explicit user goal corrections directly; reserve confirmation for inferred changes.
+- Portable evals now inject B/C orientation through the same cold-start driver, record prompts,
+  injection bytes, output and failures, and do not install native hooks. Exact token matching and
+  lifecycle integration remain separate untested controls. Rename E to agent-maintained JSON with
+  syntax validation; its tool never performed deterministic semantic maintenance.
+- Add behavioral regressions for config preservation, hook JSON/commands, excerpts, nested roots,
+  continuation guards, and eval delivery. No version bump or new production dependency.
+
 ## 1.3.0 - 2026-06-19
 
 - Injected hook context is now marked as **silent orientation**: agents are told to use it to steer

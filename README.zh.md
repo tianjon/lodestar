@@ -36,7 +36,7 @@ agent harness 提供一个持久的**定向层**——当前目标、领域语�
 它不是向量数据库,也不是又一套任务流程手册。Lodestar 补的是 *"记住事实"* 与 *"执行流程"* 之间缺失的一层:
 告诉代理**这件事为什么要做、成功长什么样、什么不在范围内、下一步做什么**。它的第一原则是守住**真实目标**,
 而不只是守住写下来的目标:既抵抗近因噪音,也主动识别用户优先级可能已经变化的证据。它**零运行时依赖**(纯
-Markdown + 协议,外加可选的生命周期 hook 做强制)。
+Markdown + 协议,外加可选的生命周期 hook 注入上下文)。
 
 ```bash
 git clone https://github.com/tianjon/lodestar.git ~/.lodestar && cd ~/.lodestar && ./install.sh
@@ -73,7 +73,7 @@ AI 编程代理擅长"接着最近一句话往下做"。但真实项目需要更
 | 🗺️ **轻量领域模型** | `.lodestar/domain.md` 记录术语、限界上下文、核心对象、能力与开放问题。 |
 | 📊 **扁平状态与决策** | `.lodestar/state.md` 让当前事实、开放问题/差距、证据与决策摘要持续可见,不要求维护重型 ledger。 |
 | 📝 **有意义的日志** | `.lodestar/log.md` 只记录目标/证据/决策/领域/行动的变化,不沦为对话流水。 |
-| 🪝 **生命周期 Hook** | 可选的 Claude Code / Codex hook,在 SessionStart、PreToolUse、PreCompact、SubagentStart/Stop、Stop 注入上下文。 |
+| 🪝 **生命周期 Hook** | 可选的 Claude Code / Codex hook，加载上下文、提醒父代理接收交接，并在结束时最多追加一次保存检查。 |
 | 📦 **可移植技能** | 纯 Markdown + bash,零运行时依赖,不绑定单一 agent harness。 |
 
 ## 🔁 工作原理
@@ -91,7 +91,7 @@ flowchart LR
 
   S["SessionStart"] -. 注入 .-> C
   T["PreToolUse"] -. 漂移检查 .-> F
-  P["PreCompact"] -. 交接 .-> H
+  P["Stop"] -. 交接 .-> H
   U["SubagentStart/Stop"] -. 传递上下文 .-> H
 ```
 
@@ -146,7 +146,7 @@ cd /path/to/your/project
 
 先用一句话写清 `Goal`、一个可观察的 `Done-when`、明确的 `Boundaries`,以及一个 `Next action`。
 
-### 3. 需要强制时打开 hook
+### 3. 按需启用生命周期提醒
 
 ```bash
 ~/.lodestar/bin/lodestar init --hooks both
@@ -154,6 +154,10 @@ cd /path/to/your/project
 ```
 
 Hook 是可选、可审查的。Codex 用户需先用 `/hooks` 审查并信任已配置的 hook,它们才会生效。
+
+只有与当前版本生成内容逐字节一致的 hook 配置才会被自动替换或删除。混合配置、符号链接和旧版配置均保留；
+可用 `lodestar hooks print` 生成参考，手动合并时保留权限、环境变量和其他 hook。
+详见 [hook 行为与兼容边界](docs/zh/hooks.md)，包括结束时最多一次额外模型调用的成本。
 
 ## 🎯 何时使用
 
@@ -191,12 +195,13 @@ Hook 是可选、可审查的。Codex 用户需先用 `/hooks` 审查并信任�
 
 ## 🧪 效果验证
 
-Lodestar 自带一套可复现的[实验框架](evals/README.md)(三臂:裸笔记 vs Lodestar vs 等量安慰剂提醒),并诚实
+Lodestar 自带一套可复现的[实验框架](evals/README.md)(三臂:裸笔记 vs Lodestar vs 提醒基线)。便携驱动器
+现已统一冷启动注入时机并记录字节量，但不宣称 token 等量或验证了原生 hook 集成。项目诚实
 报告结果——空结果与负面结果一并报告。截至目前的 pilot [结论](evals/FINDINGS.md):
 
 - ✅ **被支持:** 持久化"会变的信息"穿越上下文丢失(目标中途变、多线程聊天里跨线程的决策)。裸臂会丢,重注入的定向守得住。
-- ✅ **最佳默认表示:扁平摘要 + 追加式日志。** 在不合并与强制合并两类 pilot 中,扁平笔记都胜过 agent 自己维护的结构化记忆。Run 8 专门测试 GAP ledger 的主场:两次强制合并、状态重开、核心目标变化;结果 GAP ledger 仍然垫底。
-- ❌ **对 agent-maintained memory 已被否决:** 不要默认要求 agent 维护重型 GAP ledger 或嵌套/树形状态。GAP 仍可作为推理 lens; 由确定性工具/hook 维护的结构是另一套尚未测试的系统。
+- ✅ **推荐默认表示:扁平摘要 + 追加式日志。** 在不合并与强制合并两类 pilot 中,扁平笔记都胜过 agent 自己维护的结构化记忆。Run 8 专门测试 GAP ledger 的主场:两次强制合并、状态重开、核心目标变化;结果 GAP ledger 仍然垫底。
+- ❌ **对 agent-maintained memory 的方向性否决:** 不要默认要求 agent 维护重型 GAP ledger 或嵌套/树形状态。GAP 仍可作为推理 lens; 由确定性工具/hook 维护的结构是另一套尚未测试的系统。
 - ❌ **不宣称:** "守住固定目标"或"遵守静态约束"——强模型不靠它也能做(静态任务都撞了天花板)。
 
 无需消耗 API,冒烟测试整条流水线:

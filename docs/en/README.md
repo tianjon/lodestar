@@ -29,3 +29,5 @@ Honest pilot results — what is and isn't supported — live in [eval findings]
 Lodestar turns project memory into an orientation loop: anchor the goal, name the GAP, choose the
 next action, update state, and repeat.
 
+
+- [Hook behavior and compatibility](hooks.md)

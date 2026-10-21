@@ -27,3 +27,5 @@ Lodestar 不是一个“什么都记住”的地方，而是项目级定向层�
 | 记录下来的状态如何影响下一步行动？ | [Lodestar 如何影响 agent 产出](output-path.md) |
 | 为什么它能减少跑偏？ | [为什么这套方法有效](effectiveness.md) |
 | 开源项目应该如何诚实表达它？ | [开源运营说明](open-source.md) |
+
+- [Hook 行为与兼容边界](hooks.md)
