@@ -14,16 +14,19 @@ claim, including regimes where Lodestar is overhead or harmful.
 ## The three upgrades over a naive A/B
 
 ### 1. Three arms, not two — isolate mechanism from "just reminding"
-- **A — bare:** `AGENTS.md` + a plain `TODO.md`. No anchor, no hooks.
-- **B — Lodestar:** filled `.lodestar/{anchor,domain,state}.md` + lifecycle hooks + drift check.
-- **C — placebo:** a `FOCUS.md` carrying the **same goal text as B, padded to the same token
-  volume**, re-injected at the same lifecycle points — but with *no* structure, GAP loop, or
-  state-update step.
+- **A — bare:** `AGENTS.md` + a plain `TODO.md`.
+- **B — Lodestar:** flat `.lodestar/` state plus an explicit state-update instruction.
+- **C — reminder baseline:** `FOCUS.md` carrying the same initial goal information without a
+  structured state-update protocol.
 
-B>A only proves "extra goal text helps." **B>C is the real result**: it isolates whether the
-*structure + loop* add value beyond simply reminding the model of the goal more often. If B≈C,
-Lodestar's honest claim shrinks to "a disciplined way to repeat the goal" — still real, but weaker.
-All three arms receive the **same goal information**; only the *mechanism* differs.
+The portable `run.sh` injects B and C through the **same driver path once per cold iteration**.
+It does not install native hooks: this tests restart orientation, not lifecycle-hook integration.
+Actual orientation, byte counts, full prompts, stdout/stderr, and exit codes are saved per turn.
+These arms are **not token-matched**; byte counts are diagnostic and are not token counts. Host
+configuration also needs isolation for a real run. B>C alone cannot isolate structure from dose or
+maintenance effort. A future mechanism experiment must match token exposure at the same lifecycle
+points and verify real hook delivery. The three-arm design below remains the intended experiment,
+not a claim that the portable smoke runner implements every control.
 
 ### 2. Objective metrics first, LLM-judge second — and never let the judge read Lodestar
 - The goal and **done-when are owned by the experimenter**, fixed and external, identical across
@@ -96,11 +99,10 @@ fires, does B's `anchor.md` drift-check / return-stack actually register it? Thi
 - B loses on the hostile task by more than a small margin → overhead is worse than predicted.
 
 ## Automation
-`run.sh` drives every `(task × arm × seed × iteration)` cell headlessly via a pluggable
+`run.sh` currently implements `release-prep-loop` and drives every `(arm × seed × iteration)` cell headlessly via a pluggable
 `--agent` command (`claude -p …`, `codex exec …`, or `mock` for harness self-test), resets context
 per iteration, runs `done_when.sh`, and appends one JSON line per run to `results.jsonl`. The mock
-path lets the harness itself be smoke-tested deterministically with no API spend. The LLM-judge
-pass (`judge.md`) is a second, also-headless step over the blinded transcripts.
+path lets the harness itself be smoke-tested deterministically with no API spend. A blinded LLM-judge pass is described in `judge.md` but is not executed by this runner.
 
 ## Packaged tasks
 
@@ -111,7 +113,8 @@ Long-horizon release prep with cold restarts and temptations; done-when is a cod
 Expand a Su Shi essay **chapter by chapter** toward a single measurable thesis ("Su Shi metabolized
 exile through transcendent equanimity"), with **content-triggered tangent questions** planted in the
 source. Each chapter is written in a fresh context (cold restart); the three arms differ only in what
-orientation is re-injected each chapter. The goal/thesis lives in `goal.md` (experimenter ground
+orientation is re-injected each chapter. This task has no portable runner in `run.sh`; its material is used by the in-session workflow.
+The goal/thesis lives in `goal.md` (experimenter ground
 truth) and is deliberately **kept out of** `source/苏东坡.md`, so orientation can only come from each
 arm's apparatus — that is what the experiment isolates. Objective scoring (`done_when.sh`): chapter
 count, per-chapter length, thesis-tie ratio, required-coverage %, tangent avoidance.
@@ -141,6 +144,10 @@ not evidence about an LLM arm. To run a small real-agent pilot:
 bash evals/tasks/release-alignment-gauntlet/run_agent.sh --arms A,B,C,D,E --seed-start 1 --seeds 1 --run-tests
 ```
 
+Arm E is an **agent-maintained JSON ledger with syntax validation**. The validator only runs
+`jq empty`; it does not update entries or maintain their meaning. It cannot test deterministic
+tool-maintained memory. Historical E labels are corrected in the artifact notes.
+
 This performs eight fresh `codex exec` invocations per `(arm, seed)`. It is real agent behavior, but
 still below the preregistered n>=5/n>=10 threshold. Use `--seed-start 2` or higher when extending a
 pilot without rerunning earlier seed fixtures. The default runner uses a temporary isolated
@@ -150,9 +157,9 @@ skills, and trusted-project state do not leak into the benchmark. On systems wit
 
 ## How to repeat the experiment
 
-Two run paths, same fixtures and same scorer:
+Run paths and their current scope:
 
-1. **Portable / cross-harness (`run.sh`):** drives `(arm × seed × iteration)` headlessly via a
+1. **Portable / cross-harness (`run.sh`, release-prep-loop only):** drives `(arm × seed × iteration)` headlessly via a
    pluggable `--agent` (`claude -p …`, `codex exec …`, or `mock`). Self-testable with `--agent mock`.
    `done_when.sh` is the canonical scorer; results land in `results.jsonl`.
 2. **In-session (Claude Code Workflow):** `lodestar-su-dongpo-eval` fans out A/B/C × chapters with

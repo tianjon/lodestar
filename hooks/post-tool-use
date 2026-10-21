@@ -1,0 +1,7 @@
+#!/usr/bin/env bash
+set -euo pipefail
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]:-$0}")" && pwd)"
+source "$SCRIPT_DIR/lib.sh"
+root="$(project_root)"
+[ -d "$root/.lodestar" ] || exit 0
+emit_additional_context "PostToolUse" "If this tool returned a completed subagent result, capture its material state, evidence, decision, open gap/question, and next-action updates in the parent context and .lodestar/ as appropriate. If it is still running or nothing changed, do not write a log entry."

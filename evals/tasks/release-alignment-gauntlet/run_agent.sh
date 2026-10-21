@@ -26,7 +26,7 @@ Arms:
   B  Flat Lodestar anchor/state/log
   C  Placebo FOCUS.md with the same release facts, no structure
   D  Agent-maintained heavy GAP ledger
-  E  Deterministic tool-maintained JSON gap ledger
+  E  Agent-maintained JSON gap ledger with syntax validation
 USAGE
 }
 
@@ -123,7 +123,7 @@ arm_name() {
     B) printf 'flat-lodestar' ;;
     C) printf 'placebo-focus' ;;
     D) printf 'agent-gap-ledger' ;;
-    E) printf 'tool-gap-ledger' ;;
+    E) printf 'validated-agent-json-ledger' ;;
     *) printf 'unknown' ;;
   esac
 }
@@ -218,9 +218,9 @@ jq empty "$file"
 EOF
       chmod +x "$repo/.lodestar/bin/gap-ledger"
       {
-        printf '# Tool-Maintained Gap Ledger\n\n'
+        printf '# Agent-Maintained JSON Gap Ledger\n\n'
         release_facts
-        printf '\n\nUse `.lodestar/bin/gap-ledger .lodestar/gaps.json` to validate the ledger after edits. The ledger is tool-maintained; do not handwave invalid JSON.\n'
+        printf '\n\nUse `.lodestar/bin/gap-ledger .lodestar/gaps.json` to validate the ledger after edits. The agent maintains all entries and status transitions; the tool only checks JSON syntax. It does not maintain the ledger or validate its semantics.\n'
       } > "$repo/.lodestar/README.md"
       git -C "$repo" add -f .lodestar
       ;;

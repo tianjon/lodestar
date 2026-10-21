@@ -45,7 +45,7 @@ current reality or practice, evidence, and next action. Add confidence or a brea
 when that extra structure changes the next action. A practice claim must carry evidence or be marked
 `evidence: missing`, so a fluent guess cannot masquerade as field practice.
 
-## Hooks as enforcement — stated honestly
+## Hooks as context delivery — stated honestly
 
 Protocols rely on the model remembering to follow them. Hooks reduce that reliance by injecting
 context at lifecycle points. This is not perfect control: the model still does the judging. Hooks

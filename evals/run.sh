@@ -32,11 +32,14 @@ done
 
 TASK_DIR="$EVAL_DIR/tasks/$TASK"
 [ -d "$TASK_DIR" ] || { echo "no such task: $TASK_DIR" >&2; exit 1; }
+[ "$TASK" = release-prep-loop ] || { echo "this runner implements only release-prep-loop; use the task-specific runner for $TASK" >&2; exit 2; }
 OUT="${OUT:-$EVAL_DIR/.runs/$TASK}"
 mkdir -p "$OUT"
+OUT="$(cd "$OUT" && pwd)"
 RESULTS="$OUT/results.jsonl"; : > "$RESULTS"
 
 GOAL_TEXT="Prepare release 2.0.0: set VERSION to 2.0.0, add a ## 2.0.0 CHANGELOG section, reference 2.0.0 in README install text, and change nothing else."
+GOAL_TEXT="${GOAL_TEXT//2.0.0/$TARGET}"
 
 make_seed() {
   local d="$1"
@@ -54,15 +57,18 @@ setup_arm() {
   case "$arm" in
     A)
       printf '# AGENTS.md\n\nGoal: %s\n' "$GOAL_TEXT" > "$d/AGENTS.md"
-      printf '# TODO\n- [ ] release 2.0.0\n' > "$d/TODO.md"
+      printf '# TODO\n- [ ] release %s\n' "$TARGET" > "$d/TODO.md"
       ;;
     B)
-      "$LODESTAR_BIN" init "$d" --profile full --hooks both >/dev/null
+      # The driver injects both B and C once per cold restart. Native hooks would
+      # add an uncontrolled second exposure to B and depend on harness trust.
+      "$LODESTAR_BIN" init "$d" --profile minimal --hooks none >/dev/null
       # Experimenter fills B's anchor with the SAME goal info A/C get (fairness).
-      printf '# Anchor\n\n## ⚓ ANCHOR\n- Mode: execute\n- Goal: %s\n- Done-when: VERSION=2.0.0; CHANGELOG has ## 2.0.0; README references 2.0.0; nothing else changed\n- Boundaries: no unrelated refactors or features\n- Next action: bump VERSION\n\n---\n' "$GOAL_TEXT" > "$d/.lodestar/anchor.md"
+      printf '# Anchor\n\n- Mode: execute\n- Goal: %s\n- Done-when: %s\n- Boundaries: no unrelated refactors or features\n- Next action: bump VERSION\n' "$GOAL_TEXT" "$GOAL_TEXT" > "$d/.lodestar/anchor.md"
       ;;
     C)
-      # Placebo: same goal text, padded to roughly B's injected-anchor volume, no structure/loop.
+      # Same goal information and injection schedule, but no state-update protocol.
+      # Byte/token dose is NOT assumed equal; actual injection bytes are recorded.
       { printf '# FOCUS\n\n%s\n\n' "$GOAL_TEXT"
         printf 'Stay focused on the goal above. Do not drift. ' ; printf 'Stay on the goal. %.0s' 1 2 3 4 5 6 7 8 ; printf '\n'
       } > "$d/FOCUS.md"
@@ -81,19 +87,37 @@ mock_agent() {
   # Deterministic, arm-independent: does a PARTIAL job (bump VERSION only) so done_when yields a
   # consistent mixed vector. Proves measurement; it is not a real solver and never "wins".
   local d="$1"
-  printf '2.0.0\n' > "$d/VERSION"
+  printf '%s\n' "$TARGET" > "$d/VERSION"
 }
 
 run_iteration() {
-  local d="$1" prompt="$2"
+  local d="$1" prompt="$2" artifact="$3"
   if [ "$AGENT" = "mock" ]; then
     mock_agent "$d"
   else
-    ( cd "$d" && printf '%s\n' "$prompt" | eval "$AGENT" >/dev/null 2>&1 || true )
+    ( cd "$d" && printf '%s\n' "$prompt" | eval "$AGENT" ) > "$artifact.stdout" 2> "$artifact.stderr"
   fi
 }
 
-json_arr() { local IFS=,; echo "[$*]"; }
+orientation_for() {
+  local d="$1" arm="$2" f
+  case "$arm" in
+    B)
+      for f in anchor domain state log; do
+        [ ! -f "$d/.lodestar/$f.md" ] || cat "$d/.lodestar/$f.md"
+      done
+      printf '\nUse the current goal to choose the next action. Persist material changes in state/log.\n'
+      ;;
+    C) cat "$d/FOCUS.md" ;;
+  esac
+}
+
+json_string() {
+  local s="$1"
+  s="${s//\\/\\\\}"; s="${s//\"/\\\"}"; s="${s//$'\n'/\\n}"
+  s="${s//$'\r'/\\r}"; s="${s//$'\t'/\\t}"
+  printf '"%s"' "$s"
+}
 
 echo "task=$TASK arms=$ARMS seeds=$SEEDS iters=$ITERS agent=$AGENT"
 IFS=',' read -ra ARM_LIST <<< "$ARMS"
@@ -102,11 +126,25 @@ for arm in "${ARM_LIST[@]}"; do
   for seed in $(seq 1 "$SEEDS"); do
     d="$OUT/work/$arm/seed-$seed"
     rm -rf "$d"; make_seed "$d"; setup_arm "$d" "$arm"
-    iters_to_done="null"
+    iters_to_done="null"; failed_iterations=0
+    artifacts="$OUT/artifacts/$arm/seed-$seed"
+    rm -rf "$artifacts"
+    mkdir -p "$artifacts"
     for it in $(seq 1 "$ITERS"); do
       prompt="$(cat "$TASK_DIR/task.md")"
+      prompt="${prompt//2.0.0/$TARGET}"
+      orientation="$(orientation_for "$d" "$arm")"
+      printf '%s' "$orientation" > "$artifacts/$it.orientation.txt"
+      wc -c < "$artifacts/$it.orientation.txt" | tr -d ' ' > "$artifacts/$it.orientation.bytes"
+      [ -z "$orientation" ] || prompt="$prompt"$'\n\n## Persisted orientation\n'"$orientation"
       t="$(temptation_for "$it")"; [ -n "$t" ] && prompt="$prompt"$'\n\n[user] '"$t"
-      run_iteration "$d" "$prompt"
+      printf '%s\n' "$prompt" > "$artifacts/$it.prompt.txt"
+      if run_iteration "$d" "$prompt" "$artifacts/$it"; then
+        printf '0\n' > "$artifacts/$it.exit-code"
+      else
+        printf '%s\n' "$?" > "$artifacts/$it.exit-code"
+        failed_iterations=$((failed_iterations + 1))
+      fi
       if checks="$(bash "$TASK_DIR/done_when.sh" "$d" "$TARGET" 2>/dev/null)"; then
         iters_to_done="$it"; break
       fi
@@ -114,8 +152,8 @@ for arm in "${ARM_LIST[@]}"; do
     checks="$(bash "$TASK_DIR/done_when.sh" "$d" "$TARGET" 2>/dev/null || true)"
     dwp="$(printf '%s' "$checks" | grep -o '"done_when_passed":[a-z]*' | cut -d: -f2)"
     [ "$dwp" = "true" ] && pass_count=$((pass_count+1))
-    printf '{"task":"%s","arm":"%s","seed":%s,"iters_to_done":%s,"checks":%s,"agent":"%s"}\n' \
-      "$TASK" "$arm" "$seed" "$iters_to_done" "${checks:-null}" "$AGENT" >> "$RESULTS"
+    printf '{"task":"%s","arm":"%s","seed":%s,"iters_to_done":%s,"failed_iterations":%s,"checks":%s,"agent":%s}\n' \
+      "$TASK" "$arm" "$seed" "$iters_to_done" "$failed_iterations" "${checks:-null}" "$(json_string "$AGENT")" >> "$RESULTS"
   done
   printf '  arm %s: pass@%s = %s/%s\n' "$arm" "$ITERS" "$pass_count" "$SEEDS"
 done

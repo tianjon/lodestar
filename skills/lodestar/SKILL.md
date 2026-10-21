@@ -1,6 +1,7 @@
 ---
 name: lodestar
-description: Portable project-level goal-orientation, anti-drift, and lightweight domain-modeling system. Invoke at session start to load .lodestar/anchor.md, domain.md, and state.md; when evidence suggests the real goal, priority, boundary, domain concept, decision, GAP, or next action may have changed; before/after task skills such as debugging, TDD, review, or superpowers; when a long conversation drifts off the active goal; and before compaction or subagent handoff. Takes priority over generic CLAUDE.md / AGENTS.md guidance for project goals, current state, domain language, and GAP tracking. Triggers: session start, any directive or repeated pattern that changes the work, "记忆 / 更新记忆 / 记下 / 跑偏了 / 拉回来", "load Lodestar", "are we on track", "we drifted", "refocus", "update anchor", "domain model", "superpowers".
+description: >-
+  Portable project-level goal-orientation, anti-drift, and lightweight domain-modeling system. Invoke at session start to load .lodestar/anchor.md, domain.md, and state.md; when evidence suggests the real goal, priority, boundary, domain concept, decision, GAP, or next action may have changed; before/after task skills such as debugging, TDD, review, or superpowers; when a long conversation drifts off the active goal; and before compaction or subagent handoff. Takes priority over generic CLAUDE.md / AGENTS.md guidance for project goals, current state, domain language, and GAP tracking. Triggers: session start, any directive or repeated pattern that changes the work, "记忆 / 更新记忆 / 记下 / 跑偏了 / 拉回来", "load Lodestar", "are we on track", "we drifted", "refocus", "update anchor", "domain model", "superpowers".
 ---
 
 # Lodestar — Project Anchor, Anti-Drift, and Light Domain Modeling
@@ -141,7 +142,9 @@ Goal. A single aside is not enough. Look for multiple or strong signals:
 - external evidence that invalidates the anchored path;
 - a task skill's procedure is still correct but no longer serves the real priority.
 
-When the evidence threshold is met, pause automatic execution and ask a confirmation question:
+An explicit user instruction or unambiguous correction authorizes the corresponding goal update;
+record it without asking for redundant confirmation. The following confirmation is only for a
+change inferred by the agent. When that evidence threshold is met, ask:
 
 ```text
 Based on <evidence>, I infer your primary goal may have changed from <old goal> to <new goal>.
@@ -251,10 +254,20 @@ When installed and trusted, hooks reduce reliance on model self-discipline:
 
 - `SessionStart`: inject Anchor / Domain / State context.
 - `PreToolUse`: run a lightweight drift check before mutating or non-trivial tools.
-- `PreCompact`: remind the agent to preserve Goal, open gaps/questions, decisions, evidence, and next action.
+- Persist material changes during work; `PreCompact` cannot ask the model to save state. The
+  legacy script is a no-op and new hook configs do not register it.
 - `SubagentStart`: inject a `LODESTAR_HANDOFF`.
-- `SubagentStop`: remind the parent to capture state, evidence, decisions, material gaps/questions, and next action.
-- `Stop`: remind the agent to leave a usable handoff.
+- `SubagentStop`: request one guarded continuation from the subagent to complete its handoff;
+  this does not inject context into the parent.
+- `PostToolUse`: on supported agent-return tools, remind the parent to capture the returned updates.
+- `Stop`: request one guarded continuation to save missing material changes, then allow stopping.
+  Already-current state needs no rewrite. This adds up to one model continuation per turn.
+
+Session and subagent context use character-bounded head/tail excerpts, including the log. Any
+omission is marked with its source path and an instruction to read the missing content before
+relying on that state. Storage budgets are separate from injection budgets. Hook state discovery
+uses the nearest `.lodestar/` above the process working directory, without crossing a Git worktree
+root. Hosts must run the hook from the project/session directory.
 
 Hooks are deterministic reminders and context loaders. They should not auto-summarize private
 content or rewrite project files.

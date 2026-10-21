@@ -2,7 +2,7 @@
 
 ## 一个小而可移植的核心，加上 harness 适配层
 
-Lodestar 的形状接近“领域核心 + 适配器”（ports-and-adapters / anti-corruption layer）。**核心**是普通 Markdown 状态和 agent 可执行的协议，任何 agent 都能读。**强制层**是生命周期 hook，针对不同 harness（Claude Code、Codex）分别适配。
+Lodestar 的形状接近“领域核心 + 适配器”（ports-and-adapters / anti-corruption layer）。**核心**是普通 Markdown 状态和 agent 可执行的协议，任何 agent 都能读。**上下文投递层**是生命周期 hook，针对不同 harness（Claude Code、Codex）分别适配。
 
 保持可移植性的规则是：**核心不依赖适配器。** 如果没有 hook，或者某个 runtime 没有 hook 系统，Lodestar 会降级成可读协议，而不是坏掉的工具。hook 提高可靠性，但不是运行前提。
 
@@ -29,16 +29,17 @@ Lodestar 的第一原则是守住**真实目标**，而不只是守住写下来�
 
 `log.md` 是快速的情节层，`state.md` 是较慢的语义层。细节会随着冷却，从 log 流向 state，再流向 archive。anchor 保持小而固定，这样重新读取它永远便宜。
 
-## 强制层是关键
+## 外部触发改善投递可靠性
 
 一个需要漂移中的模型自己“记得执行”的协议很弱。同一个正在漂移的认知过程，被要求自己发现漂移；这种自指会在最需要时失败。hook 通过外部触发打断这个自指，不依赖模型是否记得：
 
 - **SessionStart** 把 anchor 注入上下文，不是“请去读它”，而是让文本本身到场。
-- **PreCompact** 在有损摘要之前提醒 agent 持久化活跃目标、差距、决策和下一步行动。
+- **PreCompact** 无法要求模型执行保存；重要变化应在工作中及时记录。新配置不再注册该事件，旧入口不执行操作。
 - **PreToolUse** 在会修改状态的行动前做漂移检查：这一步是否推进 done-when 或某个命名 GAP？证据是否表明真实目标
   已经变化、需要用户确认？
-- **SubagentStart / SubagentStop** 把 handoff 带进全新子代理，并在返回时收束结果。
-- **Stop** 在结束前提醒 agent 把变化过的目标、边界、决策、GAP 反映回状态。
+- **SubagentStart** 注入交接上下文；**SubagentStop** 最多要求子代理补全一次交接。
+- **PostToolUse** 在支持的代理返回工具后提醒父代理收集结果。
+- **Stop** 通过 `stop_hook_active` 限制最多一次续跑，检查并保存尚未记录的重要变化；它不保证保存必然成功。
 
 hook 是**可选、可审查的，并且不会静默修改项目文件**。它们加载上下文和提醒 agent，不替你编辑文件。
 
@@ -53,3 +54,5 @@ Lodestar 借用 Domain-Driven Design 作为**认知**镜头，而不是软件架
 ## 隐私
 
 项目状态默认本地私有。secret、credential、个人数据和私有 URL 在写入前就应该被脱敏；`.lodestar/` 默认加入 gitignore，除非团队明确选择共享经过审查和脱敏的状态。
+
+投递预算、配置所有权与兼容边界见 [hook 说明](hooks.md)。
