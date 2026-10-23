@@ -11,4 +11,10 @@ if [ ! -d "$root/.lodestar" ]; then
   exit 0
 fi
 
-emit_handoff_continuation "Before returning, ensure your report includes material state, evidence, decision, gap/question, and next-action updates for the parent. If already included, finish. Do not overwrite shared .lodestar/ files unless the parent explicitly assigned ownership. This feedback is for the subagent, not the parent."
+payload="$(read_payload)"
+if ! is_first_stop "$payload"; then
+  printf '{}\n'
+  exit 0
+fi
+
+emit_block "Before returning, ensure your report includes material state, evidence, decision, gap/question, and next-action updates for the parent. If already included, finish. Do not overwrite shared .lodestar/ files unless the parent explicitly assigned ownership. This feedback is for the subagent, not the parent."

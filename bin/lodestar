@@ -3,10 +3,20 @@
 #
 # Commands:
 #   lodestar init [dir] [--profile minimal|full] [--hooks none|claude|codex|both]
-#       Create .lodestar/ from templates and wire CLAUDE.md + AGENTS.md.
+#                 [--plan software|writing] [--plan-dir plan] [--subject PATH]
+#       Create .lodestar/ from templates and wire CLAUDE.md + AGENTS.md. --plan also creates a
+#       tracked planning workspace (ideas, roadmap, decisions, risks, domain or sources, specs).
 #
 #   lodestar status [dir]
-#       Show .lodestar file sizes, current anchor, and hook status.
+#       Show .lodestar file sizes, current anchor, planning workspace, and hook status.
+#
+#   lodestar add idea|ms|dec|risk|src "title" [key=value ...]
+#   lodestar new req|piece|context "title"
+#   lodestar next-id PREFIX
+#   lodestar dashboard [--out FILE] [--no-private] [--lang zh|en]
+#   lodestar doctor
+#       Planning-workspace helpers (delegate to the skill's scripts/lodestar-plan). All accept
+#       --root DIR and --plan-dir DIR.
 #
 #   lodestar hooks print|install|status|uninstall [dir] [--target claude|codex|both] [--scope project|user]
 #       Manage opt-in lifecycle hook configs. Project scope is the default.
@@ -24,6 +34,7 @@ SKILL_DIR="$REPO_DIR/skills/lodestar"
 TPL_DIR="$SKILL_DIR/references/templates"
 POINTER_FILE="$SKILL_DIR/references/project-pointer.md"
 HOOK_RUNNER="$REPO_DIR/hooks/run-hook.cmd"
+PLAN_TOOL="$SKILL_DIR/scripts/lodestar-plan"
 
 LOG_BUDGET=65536
 STATE_BUDGET=131072
@@ -67,19 +78,37 @@ shell_quote() {
   printf "'%s'" "${s//\'/\'\\\'\'}"
 }
 
-ensure_lodestar_gitignore() {
-  local dir="$1" gitignore="$dir/.gitignore" last_char=""
+gitignore_has_entry() {
+  # Treat "x", "x/", "/x", and "/x/" as the same ignore rule.
+  local gitignore="$1" entry="${2%/}" line
+  entry="${entry#/}"
+  [ -f "$gitignore" ] || return 1
+  while IFS= read -r line || [ -n "$line" ]; do
+    line="${line%$'\r'}"
+    line="${line%/}"
+    line="${line#/}"
+    [ "$line" = "$entry" ] && return 0
+  done < "$gitignore"
+  return 1
+}
+
+ensure_gitignore_entry() {
+  local dir="$1" entry="$2" gitignore="$1/.gitignore" last_char=""
   touch "$gitignore"
-  if grep -Fxq '.lodestar/' "$gitignore"; then
-    echo "  · .lodestar/ already private in .gitignore"
+  if gitignore_has_entry "$gitignore" "$entry"; then
+    echo "  · $entry already private in .gitignore"
     return
   fi
   if [ -s "$gitignore" ]; then
     last_char="$(tail -c 1 "$gitignore" 2>/dev/null || true)"
     [ -n "$last_char" ] && printf '\n' >> "$gitignore"
   fi
-  printf '.lodestar/\n' >> "$gitignore"
-  echo "  ✓ marked .lodestar/ private in .gitignore"
+  printf '%s\n' "$entry" >> "$gitignore"
+  echo "  ✓ marked $entry private in .gitignore"
+}
+
+ensure_lodestar_gitignore() {
+  ensure_gitignore_entry "$1" ".lodestar/"
 }
 
 create_state_files() {
@@ -113,7 +142,11 @@ wire_pointer() {
       continue
     fi
     {
-      [ -f "$path" ] && printf '\n'
+      # Always leave one blank line before the block, even after a missing final newline.
+      if [ -s "$path" ]; then
+        [ -n "$(tail -c 1 "$path")" ] && printf '\n'
+        printf '\n'
+      fi
       printf '%s\n' "$block"
     } >> "$path"
     echo "  ✓ wired Lodestar pointer into $doc"
@@ -124,9 +157,24 @@ parse_dir_profile_hooks() {
   PARSED_DIR="."
   PARSED_PROFILE="minimal"
   PARSED_HOOKS="none"
+  PARSED_PLAN=""
+  PARSED_PLAN_DIR=""
+  PARSED_SUBJECT=""
   local saw_dir=0
   while [ "$#" -gt 0 ]; do
     case "$1" in
+      --plan|--plan-dir|--subject)
+        [ "$#" -ge 2 ] || die "$1 requires a value"
+        case "$1" in
+          --plan) PARSED_PLAN="$2" ;;
+          --plan-dir) PARSED_PLAN_DIR="$2" ;;
+          --subject) PARSED_SUBJECT="$2" ;;
+        esac
+        shift 2
+        ;;
+      --plan=*) PARSED_PLAN="${1#--plan=}"; shift ;;
+      --plan-dir=*) PARSED_PLAN_DIR="${1#--plan-dir=}"; shift ;;
+      --subject=*) PARSED_SUBJECT="${1#--subject=}"; shift ;;
       --profile)
         [ "$#" -ge 2 ] || die "--profile requires minimal or full"
         PARSED_PROFILE="$2"
@@ -159,6 +207,11 @@ parse_dir_profile_hooks() {
 
   case "$PARSED_PROFILE" in minimal|full) ;; *) die "--profile must be minimal or full" ;; esac
   case "$PARSED_HOOKS" in none|claude|codex|both) ;; *) die "--hooks must be none, claude, codex, or both" ;; esac
+  case "$PARSED_PLAN" in ""|software|writing) ;; *) die "--plan must be software or writing" ;; esac
+  if [ -z "$PARSED_PLAN" ] && { [ -n "$PARSED_PLAN_DIR" ] || [ -n "$PARSED_SUBJECT" ]; }; then
+    die "--plan-dir and --subject require --plan software|writing"
+  fi
+  return 0
 }
 
 cmd_init() {
@@ -168,9 +221,24 @@ cmd_init() {
   dir="$(cd "$dir" && pwd)"
   local project; project="$(basename "$dir")"
 
+  # Refuse before writing anything when requested hooks or the workspace cannot be created.
+  if [ "$hooks" != "none" ]; then
+    preflight_hooks "$dir" "$hooks" "project"
+  fi
+  if [ -n "$PARSED_PLAN" ]; then
+    "$PLAN_TOOL" init --check --root "$dir" --profile "$PARSED_PLAN" ${PARSED_PLAN_DIR:+--plan-dir "$PARSED_PLAN_DIR"}
+  fi
+
   create_state_files "$dir" "$profile" "$project"
   ensure_lodestar_gitignore "$dir"
   wire_pointer "$dir"
+
+  if [ -n "$PARSED_PLAN" ]; then
+    local plan_args=(init --root "$dir" --profile "$PARSED_PLAN")
+    [ -z "$PARSED_PLAN_DIR" ] || plan_args+=(--plan-dir "$PARSED_PLAN_DIR")
+    [ -z "$PARSED_SUBJECT" ] || plan_args+=(--subject "$PARSED_SUBJECT")
+    "$PLAN_TOOL" "${plan_args[@]}"
+  fi
 
   if [ "$hooks" != "none" ]; then
     install_hooks "$dir" "$hooks" "project"
@@ -179,6 +247,10 @@ cmd_init() {
   echo ""
   echo "Lodestar initialized in $dir"
   echo "Next: fill .lodestar/anchor.md (Mode / Goal / Done-when / Boundaries / Next action)."
+  if [ -n "$PARSED_PLAN" ]; then
+    echo "Planning: fill PLAN.md (blueprint, subject, focus, constraints); then talk. Ideas, decisions,"
+    echo "risks and specs accumulate there. Render the view with: lodestar dashboard"
+  fi
   if [ "$hooks" = "codex" ] || [ "$hooks" = "both" ]; then
     echo "Codex hook note: review and trust new hooks with /hooks before expecting them to run."
   fi
@@ -217,6 +289,24 @@ hook_status_line() {
   fi
 }
 
+claude_status_line() {
+  local base="$1" scope="$2" path existing=""
+  while IFS= read -r path; do
+    if has_hook_marker "$path"; then
+      hook_status_line "Claude" "$path"
+      return
+    fi
+    if [ -f "$path" ] && [ -z "$existing" ]; then
+      existing="$path"
+    fi
+  done < <(claude_settings_candidates "$base" "$scope")
+  if [ -n "$existing" ]; then
+    hook_status_line "Claude" "$existing"
+  else
+    hook_status_line "Claude" "$base/.claude/settings.local.json"
+  fi
+}
+
 cmd_status() {
   local dir="${1:-.}"
   [ "${2:-}" = "" ] || die "status accepts at most one directory"
@@ -240,16 +330,25 @@ cmd_status() {
     | grep -E 'Mode|Goal|Done-when|Boundaries|Next action|Return-stack|Drift' \
     | sed 's/^/    /' || echo "    (no anchor block found)"
 
+  local summary
+  summary="$("$PLAN_TOOL" summary --root "$dir" 2>/dev/null | grep -v '^Capture ideas' || true)"
+  if [ -n "$summary" ]; then
+    echo ""
+    echo "  Planning:"
+    printf '%s\n' "$summary" | sed 's/^/    /'
+  fi
+
   echo ""
   echo "  Hooks:"
   hook_status_line "Codex" "$dir/.codex/hooks.json"
-  hook_status_line "Claude" "$dir/.claude/settings.json"
+  claude_status_line "$dir" project
   echo "  note        Codex non-managed hooks require /hooks trust after install or change"
 }
 
 print_hooks_json() {
-  local runner="$1" session_cmd pretool_cmd posttool_cmd subagent_cmd stop_cmd subagent_stop_cmd
+  local runner="$1" session_cmd prompt_cmd pretool_cmd posttool_cmd subagent_cmd stop_cmd subagent_stop_cmd
   session_cmd="$(json_escape "$HOOK_MARKER $(shell_quote "$runner") session-start")"
+  prompt_cmd="$(json_escape "$HOOK_MARKER $(shell_quote "$runner") user-prompt-submit")"
   pretool_cmd="$(json_escape "$HOOK_MARKER $(shell_quote "$runner") pre-tool-use")"
   posttool_cmd="$(json_escape "$HOOK_MARKER $(shell_quote "$runner") post-tool-use")"
   subagent_cmd="$(json_escape "$HOOK_MARKER $(shell_quote "$runner") subagent-start")"
@@ -267,6 +366,17 @@ print_hooks_json() {
             "type": "command",
             "command": "$session_cmd",
             "statusMessage": "Loading Lodestar anchor"
+          }
+        ]
+      }
+    ],
+    "UserPromptSubmit": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "$prompt_cmd",
+            "statusMessage": "Checking Lodestar turn"
           }
         ]
       }
@@ -335,18 +445,46 @@ print_hooks_json() {
 EOF
 }
 
-print_claude_settings_json() {
-  local runner="$1"
-  print_hooks_json "$runner"
+has_hook_marker() {
+  [ -f "$1" ] && grep -Fq "$HOOK_MARKER" "$1"
+}
+
+claude_settings_candidates() {
+  # Project scope prefers the personal settings.local.json: generated hook commands hold
+  # machine-specific absolute paths. User scope only has ~/.claude/settings.json.
+  local base="$1" scope="$2"
+  [ "$scope" = project ] && printf '%s\n' "$base/.claude/settings.local.json"
+  printf '%s\n' "$base/.claude/settings.json"
+}
+
+resolve_claude_install_path() {
+  local base="$1" scope="$2" path last=""
+  # An existing Lodestar entry decides the file, so hooks are never registered twice.
+  while IFS= read -r path; do
+    if has_hook_marker "$path"; then
+      printf '%s\n' "$path"
+      return
+    fi
+  done < <(claude_settings_candidates "$base" "$scope")
+  while IFS= read -r path; do
+    if [ ! -e "$path" ] && [ ! -L "$path" ]; then
+      printf '%s\n' "$path"
+      return
+    fi
+    last="$path"
+  done < <(claude_settings_candidates "$base" "$scope")
+  # Every candidate already holds user settings; ownership checks report the merge path.
+  printf '%s\n' "$last"
 }
 
 require_owned_hook_file() {
-  local path="$1" runtime="$2" runner="$3"
+  local path="$1" runtime="$2" runner="$3" hint=""
+  [ "$runtime" = Claude ] && hint=" Alternatively install the Lodestar Claude Code plugin: its bundled hooks need no settings edit."
   # A marker owns a command, not an entire settings file. Without a JSON parser,
   # only byte-identical generated configs are safe to replace or remove.
-  [ ! -L "$path" ] || die "$runtime config is a symlink at $path; left untouched"
+  [ ! -L "$path" ] || die "$runtime config is a symlink at $path; left untouched.$hint"
   if [ -e "$path" ] && ! cmp -s "$path" <(print_hooks_json "$runner"); then
-    die "$runtime config at $path differs from this version's generated file; left untouched. Generate a reference with 'lodestar hooks print', then manually merge/remove only entries whose command contains $HOOK_MARKER. Preserve permissions, env, and other hooks. Older generated configs also require this review."
+    die "$runtime config at $path differs from this version's generated file; left untouched. Generate a reference with 'lodestar hooks print', then manually merge/remove only entries whose command contains $HOOK_MARKER. Preserve permissions, env, and other hooks. Older generated configs also require this review.$hint"
   fi
 }
 
@@ -354,11 +492,7 @@ write_managed_hook_file() {
   local path="$1" runtime="$2" runner="$3"
   require_owned_hook_file "$path" "$runtime" "$runner"
   mkdir -p "$(dirname "$path")"
-  if [ "$runtime" = "Claude" ]; then
-    print_claude_settings_json "$runner" > "$path"
-  else
-    print_hooks_json "$runner" > "$path"
-  fi
+  print_hooks_json "$runner" > "$path"
   echo "  ✓ $runtime hooks configured at $path"
 }
 
@@ -371,58 +505,85 @@ remove_managed_hook_file() {
   elif [ -f "$path" ]; then
     echo "  · $runtime hooks left untouched (non-Lodestar config at $path)"
   else
-    echo "  · $runtime hooks not configured"
+    echo "  · $runtime hooks not configured at $path"
+  fi
+}
+
+hook_base() {
+  if [ "$2" = "project" ]; then printf '%s\n' "$1"; else printf '%s\n' "$HOME"; fi
+}
+
+HOOK_TARGET_CODEX=""
+HOOK_TARGET_CLAUDE=""
+
+preflight_hooks() {
+  # Resolve and validate every target before any file changes, so a refused merge
+  # never leaves a half-configured project.
+  local dir="$1" target="$2" scope="$3" base
+  case "$target" in claude|codex|both) ;; *) die "--target/--hooks must be claude, codex, or both" ;; esac
+  case "$scope" in project|user) ;; *) die "--scope must be project or user" ;; esac
+  [ -x "$HOOK_RUNNER" ] || die "hook runner missing or not executable: $HOOK_RUNNER"
+  base="$(hook_base "$dir" "$scope")"
+  HOOK_TARGET_CODEX=""
+  HOOK_TARGET_CLAUDE=""
+  if [ "$target" = codex ] || [ "$target" = both ]; then
+    HOOK_TARGET_CODEX="$base/.codex/hooks.json"
+    require_owned_hook_file "$HOOK_TARGET_CODEX" "Codex" "$HOOK_RUNNER"
+  fi
+  if [ "$target" = claude ] || [ "$target" = both ]; then
+    HOOK_TARGET_CLAUDE="$(resolve_claude_install_path "$base" "$scope")"
+    require_owned_hook_file "$HOOK_TARGET_CLAUDE" "Claude" "$HOOK_RUNNER"
   fi
 }
 
 install_hooks() {
-  local dir="$1" target="$2" scope="$3" base runner
-  case "$target" in claude|codex|both) ;; *) die "--target/--hooks must be claude, codex, or both" ;; esac
-  case "$scope" in project|user) ;; *) die "--scope must be project or user" ;; esac
-  [ -x "$HOOK_RUNNER" ] || die "hook runner missing or not executable: $HOOK_RUNNER"
-
-  if [ "$scope" = "project" ]; then
-    base="$dir"
-  else
-    base="$HOME"
-  fi
-  runner="$HOOK_RUNNER"
-
-  # Preflight both targets before changing either one.
-  if [ "$target" = codex ] || [ "$target" = both ]; then
-    require_owned_hook_file "$base/.codex/hooks.json" "Codex" "$runner"
-  fi
-  if [ "$target" = claude ] || [ "$target" = both ]; then
-    require_owned_hook_file "$base/.claude/settings.json" "Claude" "$runner"
-  fi
+  local dir="$1" target="$2" scope="$3"
+  preflight_hooks "$dir" "$target" "$scope"
   echo "Lodestar hooks install (target: $target, scope: $scope)"
-  if [ "$target" = "codex" ] || [ "$target" = "both" ]; then
-    write_managed_hook_file "$base/.codex/hooks.json" "Codex" "$runner"
-  fi
-  if [ "$target" = "claude" ] || [ "$target" = "both" ]; then
-    write_managed_hook_file "$base/.claude/settings.json" "Claude" "$runner"
+  [ -z "$HOOK_TARGET_CODEX" ] || write_managed_hook_file "$HOOK_TARGET_CODEX" "Codex" "$HOOK_RUNNER"
+  if [ -n "$HOOK_TARGET_CLAUDE" ]; then
+    write_managed_hook_file "$HOOK_TARGET_CLAUDE" "Claude" "$HOOK_RUNNER"
+    if [ "$HOOK_TARGET_CLAUDE" = "$dir/.claude/settings.local.json" ]; then
+      ensure_gitignore_entry "$dir" ".claude/settings.local.json"
+    fi
   fi
 }
 
 uninstall_hooks() {
-  local dir="$1" target="$2" scope="$3" base
+  local dir="$1" target="$2" scope="$3" base path paths="" runtime claude_found=0 nl=$'\n'
   case "$target" in claude|codex|both) ;; *) die "--target must be claude, codex, or both" ;; esac
   case "$scope" in project|user) ;; *) die "--scope must be project or user" ;; esac
-  if [ "$scope" = "project" ]; then base="$dir"; else base="$HOME"; fi
-  local path runtime
-  for runtime in codex claude; do
-    [ "$target" = both ] || [ "$target" = "$runtime" ] || continue
-    if [ "$runtime" = codex ]; then path="$base/.codex/hooks.json"; else path="$base/.claude/settings.json"; fi
-    if [ -L "$path" ] || { [ -f "$path" ] && grep -Fq "$HOOK_MARKER" "$path"; }; then
+  base="$(hook_base "$dir" "$scope")"
+  if [ "$target" = codex ] || [ "$target" = both ]; then
+    paths="Codex=$base/.codex/hooks.json"
+  fi
+  if [ "$target" = claude ] || [ "$target" = both ]; then
+    while IFS= read -r path; do
+      paths="$paths${paths:+$nl}Claude=$path"
+    done < <(claude_settings_candidates "$base" "$scope")
+  fi
+  # Preflight every managed file before removing any.
+  while IFS= read -r path; do
+    [ -n "$path" ] || continue
+    runtime="${path%%=*}"
+    path="${path#*=}"
+    if [ -L "$path" ] || has_hook_marker "$path"; then
       require_owned_hook_file "$path" "$runtime" "$HOOK_RUNNER"
     fi
-  done
+  done <<< "$paths"
   echo "Lodestar hooks uninstall (target: $target, scope: $scope)"
-  if [ "$target" = "codex" ] || [ "$target" = "both" ]; then
-    remove_managed_hook_file "$base/.codex/hooks.json" "Codex"
-  fi
-  if [ "$target" = "claude" ] || [ "$target" = "both" ]; then
-    remove_managed_hook_file "$base/.claude/settings.json" "Claude"
+  while IFS= read -r path; do
+    [ -n "$path" ] || continue
+    runtime="${path%%=*}"
+    path="${path#*=}"
+    if [ "$runtime" = Claude ]; then
+      has_hook_marker "$path" || continue
+      claude_found=1
+    fi
+    remove_managed_hook_file "$path" "$runtime"
+  done <<< "$paths"
+  if { [ "$target" = claude ] || [ "$target" = both ]; } && [ "$claude_found" -eq 0 ]; then
+    echo "  · Claude hooks not configured"
   fi
 }
 
@@ -479,13 +640,8 @@ cmd_hooks() {
     install) install_hooks "$dir" "$PARSED_HOOK_TARGET" "$PARSED_HOOK_SCOPE" ;;
     uninstall) uninstall_hooks "$dir" "$PARSED_HOOK_TARGET" "$PARSED_HOOK_SCOPE" ;;
     status)
-      if [ "$PARSED_HOOK_SCOPE" = "project" ]; then
-        hook_status_line "Codex" "$dir/.codex/hooks.json"
-        hook_status_line "Claude" "$dir/.claude/settings.json"
-      else
-        hook_status_line "Codex" "$HOME/.codex/hooks.json"
-        hook_status_line "Claude" "$HOME/.claude/settings.json"
-      fi
+      hook_status_line "Codex" "$(hook_base "$dir" "$PARSED_HOOK_SCOPE")/.codex/hooks.json"
+      claude_status_line "$(hook_base "$dir" "$PARSED_HOOK_SCOPE")" "$PARSED_HOOK_SCOPE"
       echo "  note        Codex non-managed hooks require /hooks trust after install or change"
       ;;
     *) die "hooks action must be print, install, status, or uninstall" ;;
@@ -494,11 +650,15 @@ cmd_hooks() {
 
 cmd_install() { exec "$REPO_DIR/install.sh" "$@"; }
 
+cmd_plan_tool() { exec "$PLAN_TOOL" "$@"; }
+
 case "${1:-}" in
   init)           shift; cmd_init "$@" ;;
   status)         shift; cmd_status "$@" ;;
   hooks)          shift; cmd_hooks "$@" ;;
   install)        shift; cmd_install "$@" ;;
+  add|new|next-id|dashboard|doctor|locate|summary)
+                  cmd_plan_tool "$@" ;;
   -h|--help|"")   grep '^#' "$0" | grep -v '^#!' | sed 's/^# \{0,1\}//' ;;
   *)              echo "unknown command: $1" >&2; echo "try: lodestar --help" >&2; exit 2 ;;
 esac

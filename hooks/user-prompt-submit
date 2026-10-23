@@ -1,0 +1,17 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]:-$0}")" && pwd)"
+# shellcheck source=hooks/lib.sh
+source "$SCRIPT_DIR/lib.sh"
+
+root="$(project_root)"
+state_dir="$root/.lodestar"
+
+if [ ! -d "$state_dir" ]; then
+  exit 0
+fi
+
+payload="$(read_payload)"
+mark_turn "$root" "$(payload_session_id "$payload")"
+emit_additional_context "UserPromptSubmit" "$(turn_context "$root")"

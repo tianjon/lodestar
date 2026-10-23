@@ -5,6 +5,8 @@ ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 TMPDIR="$(mktemp -d)"
 HOOK_MARKER="LODESTAR_HOOK_MANAGED=1"
 trap 'rm -rf "$TMPDIR"' EXIT
+# Keep per-session hook markers inside this run.
+export LODESTAR_RUNTIME_DIR="$TMPDIR/runtime"
 
 fail() {
   printf 'FAIL: %s\n' "$*" >&2
@@ -13,12 +15,12 @@ fail() {
 
 assert_file_contains() {
   local file="$1" pattern="$2"
-  grep -Fq "$pattern" "$file" || fail "$file does not contain: $pattern"
+  grep -Fq -- "$pattern" "$file" || fail "$file does not contain: $pattern"
 }
 
 assert_file_not_contains() {
   local file="$1" pattern="$2"
-  if grep -Fq "$pattern" "$file"; then
+  if grep -Fq -- "$pattern" "$file"; then
     fail "$file unexpectedly contains: $pattern"
   fi
 }
@@ -94,15 +96,134 @@ test_status_counts_utf8_characters_not_bytes() {
   fi
 }
 
+test_init_with_plan_creates_tracked_workspace() {
+  local dir="$TMPDIR/plan-software" status
+  "$ROOT/bin/lodestar" init "$dir" --plan software --subject ../prism-studio >/dev/null
+
+  assert_path_exists "$dir/.lodestar/anchor.md"
+  for f in PLAN.md ideas.md roadmap.md decisions.md risks.md domain/glossary.md requirements/README.md; do
+    assert_path_exists "$dir/plan/$f"
+  done
+  assert_file_contains "$dir/plan/PLAN.md" "lodestar-plan: software"
+  assert_file_contains "$dir/plan/PLAN.md" "subject: ../prism-studio"
+  assert_file_not_contains "$dir/plan/PLAN.md" "<PROJECT>"
+  assert_file_contains "$dir/.gitignore" "plan/dashboard.html"
+  if grep -Fxq "plan/" "$dir/.gitignore" || grep -Fxq "plan" "$dir/.gitignore"; then
+    fail "planning workspace must stay tracked"
+  fi
+  status="$("$ROOT/bin/lodestar" status "$dir")"
+  grep -Fq "PLANNING WORKSPACE (plan/, profile software, subject ../prism-studio)" <<<"$status" \
+    || fail "status did not summarize the workspace: $status"
+
+  # init is idempotent and keeps edited workspace files.
+  printf 'edited\n' >> "$dir/plan/ideas.md"
+  "$ROOT/bin/lodestar" init "$dir" --plan software >/dev/null
+  assert_file_contains "$dir/plan/ideas.md" "edited"
+}
+
+test_plan_add_allocates_ids_from_definitions() {
+  local dir="$TMPDIR/plan-ids" out today
+  "$ROOT/bin/lodestar" init "$dir" --plan software >/dev/null
+  today="$(date +%Y%m%d)"
+
+  out="$(cd "$dir" && "$ROOT/bin/lodestar" add idea "多模型 | 对比" src="2026-10-23 对话")"
+  [ "$out" = "- [IDEA-001] 多模型 / 对比 | status: inbox | src: 2026-10-23 对话" ] || fail "unexpected idea line: $out"
+  out="$(cd "$dir" && "$ROOT/bin/lodestar" add dec "先做对比" override=user compensation=RISK-001)"
+  grep -Fq "[DEC-$today-1]" <<<"$out" || fail "unexpected decision id: $out"
+  out="$(cd "$dir" && "$ROOT/bin/lodestar" add risk "数据混用" impact=high)"
+  grep -Fq "[RISK-001]" <<<"$out" || fail "forward reference made the risk id skip: $out"
+  out="$(cd "$dir/plan/requirements" && "$ROOT/bin/lodestar" next-id IDEA)"
+  [ "$out" = "IDEA-002" ] || fail "next-id from a nested directory: $out"
+  if (cd "$dir" && "$ROOT/bin/lodestar" add idea "bad" "Not A Key=1") >/dev/null 2>&1; then
+    fail "add accepted an invalid field name"
+  fi
+}
+
+test_plan_new_creates_specs_from_templates() {
+  local dir="$TMPDIR/plan-specs" path
+  "$ROOT/bin/lodestar" init "$dir" --plan software --subject ../prism-studio >/dev/null
+
+  path="$(cd "$dir" && "$ROOT/bin/lodestar" new req "Model compare MVP")"
+  [ "$path" = "$(cd "$dir" && pwd -P)/plan/requirements/REQ-001-model-compare-mvp.md" ] || fail "unexpected spec path: $path"
+  assert_file_contains "$path" "# REQ-001 Model compare MVP"
+  assert_file_contains "$path" "- subject: ../prism-studio"
+  assert_file_contains "$path" "上下文闭包"
+  path="$(cd "$dir" && "$ROOT/bin/lodestar" new req "权限系统")"
+  [ "$(basename "$path")" = "REQ-002.md" ] || fail "non-ASCII title should fall back to the bare id: $path"
+  path="$(cd "$dir" && "$ROOT/bin/lodestar" new context "Workbench")"
+  assert_file_contains "$path" "# Workbench"
+  assert_file_contains "$path" "responsibility:"
+}
+
+test_writing_profile_in_custom_directory() {
+  local dir="$TMPDIR/plan-writing" located summary
+  "$ROOT/bin/lodestar" init "$dir" --plan writing --plan-dir notes/plan >/dev/null
+
+  for f in PLAN.md ideas.md sources.md style.md pieces/README.md; do
+    assert_path_exists "$dir/notes/plan/$f"
+  done
+  assert_file_contains "$dir/.lodestar/config" "plan-dir: notes/plan"
+  assert_file_contains "$dir/.gitignore" "notes/plan/dashboard.html"
+  located="$("$ROOT/bin/lodestar" locate --root "$dir")"
+  [ "$located" = "$(cd "$dir/notes/plan" && pwd -P)" ] || fail "locate missed the configured workspace: $located"
+  (cd "$dir" && "$ROOT/bin/lodestar" new piece "Su Dongpo in Huangzhou" >/dev/null)
+  assert_path_exists "$dir/notes/plan/pieces/PIECE-001-su-dongpo-in-huangzhou.md"
+  summary="$("$ROOT/bin/lodestar" summary --root "$dir")"
+  grep -Fq "profile writing" <<<"$summary" || fail "summary missing profile: $summary"
+  grep -Fq "Specs: 1 draft" <<<"$summary" || fail "summary missing the new piece: $summary"
+}
+
+test_init_plan_refuses_foreign_plan_md_before_writing() {
+  local dir="$TMPDIR/foreign-plan"
+  mkdir -p "$dir/plan"
+  printf '# my own plan\n' > "$dir/plan/PLAN.md"
+  if "$ROOT/bin/lodestar" init "$dir" --plan software >/dev/null 2>&1; then
+    fail "init overwrote or adopted a foreign PLAN.md"
+  fi
+  assert_path_absent "$dir/.lodestar"
+  assert_file_contains "$dir/plan/PLAN.md" "# my own plan"
+}
+
+test_dashboard_and_doctor_work_without_python() {
+  local dir="$TMPDIR/dash" out page
+  "$ROOT/bin/lodestar" init "$dir" --plan writing >/dev/null
+  (cd "$dir" && "$ROOT/bin/lodestar" add src "苏轼文集" reliability=high >/dev/null)
+  (cd "$dir" && "$ROOT/bin/lodestar" new piece "Huangzhou" >/dev/null)
+  out="$(cd "$dir" && "$ROOT/bin/lodestar" dashboard)"
+  page="$(cat "$out")"
+  grep -Fq "<!doctype html>" <<<"$page" || fail "dashboard missing doctype"
+  grep -Fq "资料与引用" <<<"$page" || fail "writing dashboard missing sources section"
+  grep -Fq "SRC-001" <<<"$page" || fail "writing dashboard missing source row"
+  grep -Fq "PIECE-001" <<<"$page" || fail "writing dashboard missing piece"
+  if (cd "$dir" && "$ROOT/bin/lodestar" doctor >/dev/null); then
+    fail "doctor passed an unfilled anchor"
+  fi
+}
+
+test_pointer_gets_a_blank_line_separator() {
+  local dir="$TMPDIR/pointer-sep"
+  mkdir -p "$dir"
+  printf '# Project rules' > "$dir/CLAUDE.md"
+  printf '# Agents\n' > "$dir/AGENTS.md"
+  "$ROOT/bin/lodestar" init "$dir" >/dev/null
+  [ "$(sed -n '2p' "$dir/CLAUDE.md")" = "" ] || fail "missing blank line after unterminated CLAUDE.md"
+  [ "$(sed -n '3p' "$dir/CLAUDE.md")" = "<!-- LODESTAR:START -->" ] || fail "pointer glued to CLAUDE.md: $(head -3 "$dir/CLAUDE.md")"
+  [ "$(sed -n '2p' "$dir/AGENTS.md")" = "" ] || fail "missing blank line in AGENTS.md"
+  [ "$(sed -n '3p' "$dir/AGENTS.md")" = "<!-- LODESTAR:START -->" ] || fail "pointer misplaced in AGENTS.md"
+}
+
 test_hooks_install_status_and_uninstall() {
   local dir="$TMPDIR/hooks"
   mkdir -p "$dir"
   "$ROOT/bin/lodestar" init "$dir" --hooks both >/dev/null
 
   assert_file_contains "$dir/.codex/hooks.json" "$HOOK_MARKER"
-  assert_file_contains "$dir/.claude/settings.json" "$HOOK_MARKER"
+  assert_file_contains "$dir/.claude/settings.local.json" "$HOOK_MARKER"
   assert_file_contains "$dir/.codex/hooks.json" "session-start"
-  assert_file_contains "$dir/.claude/settings.json" "pre-tool-use"
+  assert_file_contains "$dir/.claude/settings.local.json" "pre-tool-use"
+  assert_file_contains "$dir/.claude/settings.local.json" "user-prompt-submit"
+  assert_path_absent "$dir/.claude/settings.json"
+  assert_file_contains "$dir/.gitignore" ".claude/settings.local.json"
 
   local status
   status="$("$ROOT/bin/lodestar" hooks status "$dir")"
@@ -110,7 +231,39 @@ test_hooks_install_status_and_uninstall() {
 
   "$ROOT/bin/lodestar" hooks uninstall "$dir" --target both >/dev/null
   assert_path_absent "$dir/.codex/hooks.json"
-  assert_path_absent "$dir/.claude/settings.json"
+  assert_path_absent "$dir/.claude/settings.local.json"
+}
+
+test_hooks_use_local_settings_when_shared_settings_exist() {
+  local dir="$TMPDIR/shared-settings"
+  mkdir -p "$dir/.claude"
+  printf '{"permissions":{"allow":["Bash(npm test)"]}}\n' > "$dir/.claude/settings.json"
+  printf '.lodestar\n' > "$dir/.gitignore"
+
+  "$ROOT/bin/lodestar" init "$dir" --hooks both >/dev/null
+
+  assert_file_contains "$dir/.claude/settings.json" '"permissions"'
+  assert_file_not_contains "$dir/.claude/settings.json" "$HOOK_MARKER"
+  assert_file_contains "$dir/.claude/settings.local.json" "$HOOK_MARKER"
+  [ "$(grep -c 'lodestar' "$dir/.gitignore")" = 1 ] || fail "duplicate .lodestar ignore rule: $(cat "$dir/.gitignore")"
+
+  "$ROOT/bin/lodestar" hooks uninstall "$dir" --target claude >/dev/null
+  assert_path_absent "$dir/.claude/settings.local.json"
+  assert_file_contains "$dir/.claude/settings.json" '"permissions"'
+}
+
+test_init_refuses_hooks_before_writing_state() {
+  local dir="$TMPDIR/both-settings"
+  mkdir -p "$dir/.claude"
+  printf '{}\n' > "$dir/.claude/settings.json"
+  printf '{}\n' > "$dir/.claude/settings.local.json"
+
+  if "$ROOT/bin/lodestar" init "$dir" --hooks claude >/dev/null 2>&1; then
+    fail "init installed hooks over two unmanaged Claude settings files"
+  fi
+  assert_path_absent "$dir/.lodestar"
+  assert_path_absent "$dir/CLAUDE.md"
+  assert_path_absent "$dir/.gitignore"
 }
 
 test_hooks_managed_marker_is_not_repo_path_dependent() {
@@ -127,7 +280,7 @@ test_hooks_managed_marker_is_not_repo_path_dependent() {
 
   "$src/bin/lodestar" init "$dir" --hooks both >/dev/null
   assert_file_contains "$dir/.codex/hooks.json" "$HOOK_MARKER"
-  assert_file_contains "$dir/.claude/settings.json" "$HOOK_MARKER"
+  assert_file_contains "$dir/.claude/settings.local.json" "$HOOK_MARKER"
 
   local status
   status="$("$src/bin/lodestar" hooks status "$dir")"
@@ -137,7 +290,7 @@ test_hooks_managed_marker_is_not_repo_path_dependent() {
   "$src/bin/lodestar" hooks install "$dir" --target both >/dev/null
   "$src/bin/lodestar" hooks uninstall "$dir" --target both >/dev/null
   assert_path_absent "$dir/.codex/hooks.json"
-  assert_path_absent "$dir/.claude/settings.json"
+  assert_path_absent "$dir/.claude/settings.local.json"
 }
 
 test_hooks_refuse_to_overwrite_unmanaged_existing_config() {
@@ -156,8 +309,11 @@ test_hook_scripts_emit_expected_context() {
   mkdir -p "$dir"
   "$ROOT/bin/lodestar" init "$dir" >/dev/null
 
-  local session pretool precompact subagent stop
+  local session prompt pretool precompact subagent stop
   session="$(cd "$dir" && "$ROOT/hooks/session-start" <<< '{"hook_event_name":"SessionStart"}')"
+  stop="$(cd "$dir" && "$ROOT/hooks/stop" <<< '{"hook_event_name":"Stop","stop_hook_active":false}')"
+  grep -Fq '"decision": "block"' <<<"$stop" || fail "untracked Stop must keep the legacy continuation: $stop"
+  prompt="$(cd "$dir" && "$ROOT/hooks/user-prompt-submit" <<< '{"hook_event_name":"UserPromptSubmit","prompt":"hi"}')"
   pretool="$(cd "$dir" && "$ROOT/hooks/pre-tool-use" <<< '{"hook_event_name":"PreToolUse"}')"
   precompact="$(cd "$dir" && "$ROOT/hooks/pre-compact" <<< '{"hook_event_name":"PreCompact"}')"
   subagent="$(cd "$dir" && "$ROOT/hooks/subagent-start" <<< '{"hook_event_name":"SubagentStart"}')"
@@ -165,12 +321,14 @@ test_hook_scripts_emit_expected_context() {
 
   grep -Fq "LODESTAR_CONTEXT" <<<"$session" || fail "SessionStart context missing: $session"
   grep -Fq "real goal" <<<"$session" || fail "SessionStart context missing real-goal rule: $session"
+  grep -Fq "LODESTAR_TURN" <<<"$prompt" || fail "UserPromptSubmit context missing: $prompt"
+  grep -Fq "material conflict" <<<"$prompt" || fail "UserPromptSubmit missing challenge rule: $prompt"
   grep -Fq "LODESTAR_DRIFT_CHECK" <<<"$pretool" || fail "PreToolUse context missing: $pretool"
   grep -Fq "re-anchor the primary Goal" <<<"$pretool" || fail "PreToolUse context missing re-anchor proposal rule: $pretool"
   [ -z "$precompact" ] || fail "PreCompact must not emit an ineffective save reminder: $precompact"
   grep -Fq "LODESTAR_HANDOFF" <<<"$subagent" || fail "SubagentStart handoff missing: $subagent"
   grep -Fq "priority of a branch goal" <<<"$subagent" || fail "SubagentStart handoff missing branch-priority rule: $subagent"
-  grep -Fq '"decision": "block"' <<<"$stop" || fail "Stop continuation missing: $stop"
+  grep -Fq '{}' <<<"$stop" || fail "Stop must wait for more unsaved turns after one tracked turn: $stop"
 }
 
 test_protocol_documents_privacy_domain_and_skill_bridge() {
@@ -227,6 +385,17 @@ test_user_docs_and_community_files_exist() {
 test_skill_remains_self_contained() {
   assert_file_not_contains "$ROOT/skills/lodestar/SKILL.md" "bin/lodestar"
   assert_file_not_contains "$ROOT/skills/lodestar/references/project-pointer.md" "bin/lodestar"
+  assert_tree_not_contains "$ROOT/skills/lodestar" "bin/lodestar" "$TMPDIR/skill-bin-refs.txt"
+  local ref
+  for ref in references/challenge.md references/planning/README.md references/planning/thinking-models.md \
+             scripts/lodestar-plan; do
+    assert_path_exists "$ROOT/skills/lodestar/$ref"
+    assert_file_contains "$ROOT/skills/lodestar/SKILL.md" "$ref"
+  done
+  for ref in software/PLAN.md writing/PLAN.md specs/requirement.md specs/piece.md specs/context.md; do
+    assert_path_exists "$ROOT/skills/lodestar/references/planning/templates/$ref"
+  done
+  [ -x "$ROOT/skills/lodestar/scripts/lodestar-plan" ] || fail "lodestar-plan must be executable"
 }
 
 test_maintainer_docs_name_bash_not_posix() {
@@ -272,8 +441,17 @@ test_force_allows_replacing_unmanaged_existing_skill() {
 
 test_init_creates_lodestar_namespace_only
 test_full_profile_includes_gap_decision_and_domain_scaffolds
+test_init_with_plan_creates_tracked_workspace
+test_plan_add_allocates_ids_from_definitions
+test_plan_new_creates_specs_from_templates
+test_writing_profile_in_custom_directory
+test_init_plan_refuses_foreign_plan_md_before_writing
+test_dashboard_and_doctor_work_without_python
+test_pointer_gets_a_blank_line_separator
 test_status_counts_utf8_characters_not_bytes
 test_hooks_install_status_and_uninstall
+test_hooks_use_local_settings_when_shared_settings_exist
+test_init_refuses_hooks_before_writing_state
 test_hooks_managed_marker_is_not_repo_path_dependent
 test_hooks_refuse_to_overwrite_unmanaged_existing_config
 test_hook_scripts_emit_expected_context

@@ -1,0 +1,1 @@
+已写好 REQ-001（plan/requirements/REQ-001-markdown-export.md），通过上下文闭包检查，状态 ready。

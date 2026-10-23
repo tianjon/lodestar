@@ -79,7 +79,10 @@ where drift usually happens**.
 | 🗺️ **Lightweight domain model** | `.lodestar/domain.md` captures terms, bounded contexts, core objects, capabilities, and open questions. |
 | 📊 **Flat state & decisions** | `.lodestar/state.md` keeps current facts, open questions/gaps, evidence, and decision summaries visible without a heavy ledger. |
 | 📝 **Meaningful log** | `.lodestar/log.md` records goal, evidence, decision, domain, and action changes — without becoming a transcript. |
-| 🪝 **Lifecycle hooks** | Optional Claude Code & Codex hooks load context, prompt parent handoffs, and request one guarded save pass at Stop. |
+| 🪝 **Lifecycle hooks** | Optional Claude Code & Codex hooks load context, check each user turn for new ideas, goal changes, and conflicts, prompt parent handoffs, and request a rate-limited save pass at Stop. |
+| ⚖️ **First-principles challenge** | Flags a request that conflicts with the goal, a decision, or a constraint that does not bend, once and with evidence; if you insist, it complies, records the override, and compensates instead of re-arguing. |
+| 🗂️ **Planning workspace** *(optional)* | For product planning or article writing: an idea pool, roadmap, decisions, risks, domain model or sources, and specs other agents can execute, as tracked one-line entries with stable IDs. |
+| 🖥️ **Generated dashboard** | `lodestar dashboard` renders the current plan to one self-contained HTML file. |
 | 📦 **Portable skill** | Pure Markdown + bash. No runtime dependency, no lock-in to one agent harness. |
 
 ## 🔁 How Lodestar Works
@@ -164,10 +167,26 @@ Start with one sentence for `Goal`, an observable `Done-when`, clear `Boundaries
 Hooks are opt-in and reviewable. Codex users should review and trust configured hooks with `/hooks` before
 expecting them to run.
 
-Hook configs are replaced or removed only when byte-identical to this version's generated file.
-Mixed settings, symlinks, and older configs are preserved. Use `lodestar hooks print` to generate
-a reference for manual merging; keep permissions, environment settings, and other hooks.
-See [hook behavior and compatibility](docs/en/hooks.md), including the one-pass Stop overhead.
+Claude Code project hooks go to the personal `.claude/settings.local.json` (git-ignored), so an
+existing shared `.claude/settings.json` is never touched. Hook configs are replaced or removed only
+when byte-identical to this version's generated file; mixed settings, symlinks, and older configs are
+preserved. Use `lodestar hooks print` for manual merging, or the Claude Code plugin, whose bundled
+hooks need no settings edit. See [hook behavior and compatibility](docs/en/hooks.md), including the
+rate-limited Stop pass (`LODESTAR_STOP_EVERY`).
+
+### 4. Plan through conversation (optional)
+
+For a planning repository such as `my-product-docs` next to the code in `../my-product`:
+
+```bash
+~/.lodestar/bin/lodestar init --plan software --subject ../my-product --hooks claude   # or --plan writing
+```
+
+Then just talk. New ideas land in `plan/ideas.md`, decisions and challenges in `plan/decisions.md`,
+risks in `plan/risks.md`, terms in `plan/domain/`. Ask for a spec and the agent creates
+`plan/requirements/REQ-001-….md` from a self-contained template. `lodestar dashboard` renders
+`plan/dashboard.html`; `lodestar doctor` checks the invariants. See the
+[planning layer design](docs/en/planning.md).
 
 ## 🎯 When To Use Lodestar
 
@@ -177,6 +196,8 @@ See [hook behavior and compatibility](docs/en/hooks.md), including the one-pass 
 - a project spans multiple sessions or context compactions;
 - Claude Code, Codex, task skills, or subagents need a compact project handoff;
 - domain language, decisions, and open questions/gaps need to remain visible over time.
+- you plan a product or write articles through long conversations and want ideas, decisions, and
+  specs to accumulate as tracked documents.
 
 **Skip Lodestar when:**
 
@@ -200,6 +221,7 @@ Full docs live in [`docs/`](docs/README.md) ([中文文档](docs/zh/README.md)):
 - [Why Lodestar exists](docs/en/why-lodestar.md) — the orientation-decay problem
 - [Design and architecture](docs/en/design.md) — core, hooks, light DDD, ports & adapters
 - [How Lodestar shapes output](docs/en/output-path.md) — why state must change the next action
+- [Planning layer design](docs/en/planning.md) — idea pool, challenges, specs, dashboard
 - [Why the approach is effective](docs/en/effectiveness.md) — cognitive grounding and honest limits
 - [Open-source operating notes](docs/en/open-source.md) — promises and what we avoid
 

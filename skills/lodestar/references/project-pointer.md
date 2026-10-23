@@ -34,7 +34,13 @@ This project uses **Lodestar** as its project-level orientation layer. Lodestar 
 8. **When using task skills** (debugging, TDD, review, superpowers, etc.), use Lodestar as the
    orientation layer: name which Goal or open gap/question the skill serves before execution, then
    record State, Decision, Domain, and material gap/question updates afterward.
-9. Skill details: invoke the `lodestar` skill.
+9. **Challenge from first principles**: when a request materially conflicts with the Goal, a recorded
+   decision, or a constraint that does not bend, say so once with evidence and an alternative. If
+   the user insists, comply, record the override with its compensation, and do not re-litigate.
+10. **Planning workspace** (if a `PLAN.md` marked `lodestar-plan` exists, usually `plan/`): capture
+    new ideas, decisions, risks, and terms there as one-line ID entries, write handoff specs from its
+    templates, and regenerate its dashboard after material changes.
+11. Skill details: invoke the `lodestar` skill.
 <!-- LODESTAR:END -->
 ```
 

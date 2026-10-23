@@ -14,7 +14,7 @@
   "plugins": [
     {
       "name": "lodestar",
-      "description": "Project anchor layer (Mode/Goal/Domain/State/Decision/Action) with lightweight gap awareness, opt-in lifecycle hooks, and task-skill bridge.",
+      "description": "Project anchor layer (Mode/Goal/Domain/State/Decision/Action) with lightweight gap awareness, first-principles challenges, an optional planning workspace with specs and a generated dashboard, opt-in lifecycle hooks, and task-skill bridge.",
       "source": "./",
       "strict": false,
       "skills": [

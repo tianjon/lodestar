@@ -155,6 +155,22 @@ pilot without rerunning earlier seed fixtures. The default runner uses a tempora
 skills, and trusted-project state do not leak into the benchmark. On systems without
 `timeout`/`gtimeout`, it uses a bash watchdog so `--timeout-seconds` still bounds stalled turns.
 
+### `planning-conversation` — planning-partner behavior across cold restarts
+Eight cold-start turns plan a fictional product (Orbit) in a separate docs project: ideas raised in
+passing, a planted first-principles conflict (plaintext API keys in the cloud despite a "data stays
+on the machine" constraint), a user override, an unrelated follow-up, an explicit goal change, and a
+spec request for an agent that cannot see the conversation. Arms: A bare, B Lodestar planning
+workspace (hook context delivered by the portable driver), C free-form notes placebo.
+
+```bash
+bash evals/tasks/planning-conversation/run_smoke.sh      # scorer must separate good/bad fixtures
+bash evals/tasks/planning-conversation/run_agent.sh --agent-cmd 'claude -p --permission-mode acceptEdits' --seeds 5
+```
+
+The scorer is representation-agnostic and does not award points for Lodestar-specific files
+(`dashboard_present` and `doctor_passed` are reported only). No live arms have been run yet; the
+smoke fixtures validate the scorer, not the planning layer.
+
 ## How to repeat the experiment
 
 Run paths and their current scope:
@@ -191,13 +207,22 @@ evals/
     │   └── source/苏东坡.md       # pure material skeleton — NO thesis (orientation comes from the arm)
     ├── gap-consolidation/
     │   └── spec.md               # F/S/G representation stress test used by Run 8
-    └── release-alignment-gauntlet/
-        ├── spec.md               # realistic release-context task
-        ├── ground_truth.json     # machine-readable release-alignment contract
-        ├── seed_fixture.sh       # creates deliberately inconsistent repo fixtures
-        ├── score.sh              # objective scorer
-        ├── run_smoke.sh          # deterministic noop/oracle runner
-        ├── run_agent.sh          # real Codex cold-start pilot runner
-        ├── judge.md              # blind judge prompt
-        └── turns/                # cold-start turn prompts
+    ├── release-alignment-gauntlet/
+    │   ├── spec.md               # realistic release-context task
+    │   ├── ground_truth.json     # machine-readable release-alignment contract
+    │   ├── seed_fixture.sh       # creates deliberately inconsistent repo fixtures
+    │   ├── score.sh              # objective scorer
+    │   ├── run_smoke.sh          # deterministic noop/oracle runner
+    │   ├── run_agent.sh          # real Codex cold-start pilot runner
+    │   ├── judge.md              # blind judge prompt
+    │   └── turns/                # cold-start turn prompts
+    └── planning-conversation/
+        ├── spec.md               # planning-partner task, arms, metrics
+        ├── ground_truth.json     # idea patterns, planted conflict, spec contract
+        ├── score.sh              # representation-agnostic objective scorer
+        ├── run_smoke.sh          # good/bad fixture check for the scorer
+        ├── run_agent.sh          # any-agent cold-start driver (A/B/C)
+        ├── judge.md              # blind judge rubric
+        ├── fixtures/             # good/ and bad/ projects with transcripts
+        └── turns/                # the eight user turns
 ```

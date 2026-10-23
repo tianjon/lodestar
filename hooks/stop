@@ -11,4 +11,10 @@ if [ ! -d "$root/.lodestar" ]; then
   exit 0
 fi
 
-emit_handoff_continuation "Before ending, check whether material goal, boundary, decision, evidence, open gap/question, next-action, or re-anchor proposal changes still need saving in .lodestar/. Save only missing changes, with sensitive values redacted. If already current, finish without rewriting files. This is a single handoff pass, not a new task or a reason to expand scope."
+payload="$(read_payload)"
+if ! is_first_stop "$payload" || [ "$(stop_gate "$root" "$(payload_session_id "$payload")")" != block ]; then
+  printf '{}\n'
+  exit 0
+fi
+
+emit_block "Before ending, check whether material goal, boundary, decision, evidence, open gap/question, idea, next-action, or re-anchor proposal changes still need saving in .lodestar/ or the planning workspace. Save only missing changes, with sensitive values redacted. If already current, finish without rewriting files or adding a status note. This is a single handoff pass, not a new task or a reason to expand scope."
