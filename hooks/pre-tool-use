@@ -12,8 +12,14 @@ if [ ! -d "$state_dir" ]; then
   exit 0
 fi
 
-anchor_brief="$(grep -E 'Mode|Goal|Done-when' "$state_dir/anchor.md" 2>/dev/null | head -6 || true)"
-context="$(cat <<EOF
+payload="$(read_payload)"
+# Once per turn when turns are tracked; every call otherwise (legacy configs).
+if ! pretool_first_in_turn "$root" "$(payload_session_id "$payload")"; then
+  exit 0
+fi
+
+anchor_brief="$(anchor_brief "$state_dir/anchor.md")"
+context="$(cat <<CTX
 <LODESTAR_DRIFT_CHECK>
 Use this context silently without a goal-restating preamble; explain it if the user asks.
 Persist material goal, decision, evidence, and next-action changes as work progresses. Do not
@@ -29,7 +35,7 @@ Do not silently rewrite the Anchor from one or two side remarks.
 ANCHOR (brief):
 $anchor_brief
 </LODESTAR_DRIFT_CHECK>
-EOF
+CTX
 )"
 
 emit_additional_context "PreToolUse" "$context"

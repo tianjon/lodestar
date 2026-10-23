@@ -1,0 +1,903 @@
+#!/usr/bin/env bash
+# lodestar-plan — helper for Lodestar planning workspaces. bash + POSIX awk only; optional:
+# every step can also be done by hand (see references/planning/README.md).
+#
+# Commands:
+#   locate                                   Print the planning workspace path, if any.
+#   init --profile software|writing [--subject PATH] [--check]
+#                                            Create a workspace from templates (keeps existing files);
+#                                            --check validates only.
+#   add idea|ms|dec|risk|src "title" [key=value ...]
+#                                            Append a one-line item with the next free ID.
+#   new req|piece|context "title"            Create a spec or context file from a template.
+#   next-id PREFIX                           Print the next free ID (IDEA-004, DEC-20261023-2).
+#   summary                                  Compact counts for hooks and `lodestar status`.
+#   dashboard [--out FILE] [--no-private] [--lang zh|en]
+#                                            Render dashboard.html from the workspace.
+#   doctor                                   Check Anchor and workspace invariants.
+#
+# Options for every command:
+#   --root DIR      project root (default: nearest directory with .lodestar/ or a workspace)
+#   --plan-dir DIR  workspace directory, relative to the root (default: discovered; init: plan)
+
+set -euo pipefail
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+SKILL_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
+TPL_DIR="$SKILL_DIR/references/planning/templates"
+SELF="$SCRIPT_DIR/lodestar-plan"
+MARKER="lodestar-plan:"
+PLACEHOLDER_SUBJECT="<所服务项目的路径或仓库地址>"
+
+ROOT_ARG=""
+PLAN_ARG=""
+PROFILE_ARG=""
+SUBJECT_ARG=""
+OUT_ARG=""
+NO_PRIVATE=0
+CHECK_ONLY=0
+LANG_ARG="zh"
+ARGS=()
+
+die() {
+  echo "error: $*" >&2
+  exit 1
+}
+
+usage() {
+  grep '^#' "$SELF" | grep -v '^#!' | sed 's/^# \{0,1\}//'
+}
+
+parse_args() {
+  while [ "$#" -gt 0 ]; do
+    case "$1" in
+      --root|--plan-dir|--profile|--subject|--out)
+        [ "$#" -ge 2 ] || die "$1 requires a value"
+        case "$1" in
+          --root) ROOT_ARG="$2" ;;
+          --plan-dir) PLAN_ARG="$2" ;;
+          --profile) PROFILE_ARG="$2" ;;
+          --subject) SUBJECT_ARG="$2" ;;
+          --out) OUT_ARG="$2" ;;
+        esac
+        shift 2
+        ;;
+      --root=*) ROOT_ARG="${1#*=}"; shift ;;
+      --plan-dir=*) PLAN_ARG="${1#*=}"; shift ;;
+      --profile=*) PROFILE_ARG="${1#*=}"; shift ;;
+      --subject=*) SUBJECT_ARG="${1#*=}"; shift ;;
+      --out=*) OUT_ARG="${1#*=}"; shift ;;
+      --no-private) NO_PRIVATE=1; shift ;;
+      --lang) [ "$#" -ge 2 ] || die "--lang requires zh or en"; LANG_ARG="$2"; shift 2 ;;
+      --lang=*) LANG_ARG="${1#*=}"; shift ;;
+      --check) CHECK_ONLY=1; shift ;;
+      -h|--help) usage; exit 0 ;;
+      -*) die "unknown option: $1" ;;
+      *) ARGS+=("$1"); shift ;;
+    esac
+  done
+}
+
+is_workspace() {
+  # No early-exit pipe consumers anywhere: under pipefail they turn SIGPIPE into false failures.
+  [ -f "$1/PLAN.md" ] && LC_ALL=C awk -v m="$MARKER" 'FNR <= 5 && index($0, m) { f = 1 } END { exit !f }' "$1/PLAN.md"
+}
+
+workspace_profile() {
+  sed -n '/lodestar-plan:/{s/.*lodestar-plan:[[:space:]]*\([a-z][a-z]*\).*/\1/p;q;}' "$1/PLAN.md"
+}
+
+abs_path() {
+  # abs_path <base> <path>: absolute path; resolves symlinks when the directory exists.
+  local p
+  case "$2" in
+    /*) p="$2" ;;
+    *) p="$1/$2" ;;
+  esac
+  if [ -d "$p" ]; then
+    (cd "$p" && pwd -P)
+  else
+    printf '%s\n' "$p"
+  fi
+}
+
+find_root() {
+  local start current boundary
+  start="$(pwd -P)"
+  boundary="$(git rev-parse --show-toplevel 2>/dev/null || printf '/')"
+  # Prefer the nearest initialized project, then the nearest workspace owner.
+  current="$start"
+  while :; do
+    [ -d "$current/.lodestar" ] && { printf '%s\n' "$current"; return; }
+    if [ "$current" = "$boundary" ] || [ "$current" = / ]; then break; fi
+    current="$(dirname "$current")"
+  done
+  current="$start"
+  while :; do
+    is_workspace "$current/plan" && { printf '%s\n' "$current"; return; }
+    is_workspace "$current" && { printf '%s\n' "$current"; return; }
+    if [ "$current" = "$boundary" ] || [ "$current" = / ]; then break; fi
+    current="$(dirname "$current")"
+  done
+  printf '%s\n' "$start"
+}
+
+resolve_root() {
+  if [ -n "$ROOT_ARG" ]; then
+    [ -d "$ROOT_ARG" ] || die "root does not exist: $ROOT_ARG"
+    (cd "$ROOT_ARG" && pwd -P)
+  else
+    find_root
+  fi
+}
+
+locate_plan() {
+  local root="$1" cand
+  if [ -n "$PLAN_ARG" ]; then
+    cand="$(abs_path "$root" "$PLAN_ARG")"
+    is_workspace "$cand" && { printf '%s\n' "$cand"; return 0; }
+    return 1
+  fi
+  if [ -n "${LODESTAR_PLAN_DIR:-}" ]; then
+    cand="$(abs_path "$root" "$LODESTAR_PLAN_DIR")"
+    is_workspace "$cand" && { printf '%s\n' "$cand"; return 0; }
+  fi
+  if [ -f "$root/.lodestar/config" ]; then
+    cand="$(sed -n '/^plan-dir:/{s/^plan-dir:[[:space:]]*//p;q;}' "$root/.lodestar/config")"
+    if [ -n "$cand" ]; then
+      cand="$(abs_path "$root" "$cand")"
+      is_workspace "$cand" && { printf '%s\n' "$cand"; return 0; }
+    fi
+  fi
+  for cand in "$root/plan" "$root"; do
+    if is_workspace "$cand"; then
+      abs_path "$cand" .
+      return 0
+    fi
+  done
+  return 1
+}
+
+require_plan() {
+  local root="$1" plan
+  plan="$(locate_plan "$root")" \
+    || die "no planning workspace under $root. Create one: lodestar init --plan software|writing"
+  printf '%s\n' "$plan"
+}
+
+render_into() {
+  # render_into <template> <dest> <token> <value> [<token> <value> ...]
+  local src="$1" dest="$2"
+  shift 2
+  render_into_stdout "$src" "$@" > "$dest"
+}
+
+REPLACED=""
+
+replace_all() {
+  # replace_all <text> <token> <value>: sets REPLACED. Literal for any characters: never use
+  # ${var//pat/rep} for this, because bash 5.2's default patsub_replacement expands & in rep.
+  local text="$1" token="$2" value="$3" out=""
+  while [[ "$text" == *"$token"* ]]; do
+    out="$out${text%%"$token"*}$value"
+    text="${text#*"$token"}"
+  done
+  REPLACED="$out$text"
+}
+
+render_into_stdout() {
+  local src="$1" text
+  shift
+  text="$(cat "$src"; printf x)"
+  text="${text%x}"
+  while [ "$#" -ge 2 ]; do
+    replace_all "$text" "$1" "$2"
+    text="$REPLACED"
+    shift 2
+  done
+  printf '%s' "$text"
+}
+
+gitignore_has_entry() {
+  local gitignore="$1" entry="${2%/}" line
+  entry="${entry#/}"
+  [ -f "$gitignore" ] || return 1
+  while IFS= read -r line || [ -n "$line" ]; do
+    line="${line%$'\r'}"
+    line="${line%/}"
+    line="${line#/}"
+    [ "$line" = "$entry" ] && return 0
+  done < "$gitignore"
+  return 1
+}
+
+ensure_gitignore_entry() {
+  local dir="$1" entry="$2" gitignore="$1/.gitignore" last_char=""
+  touch "$gitignore"
+  gitignore_has_entry "$gitignore" "$entry" && return 0
+  if [ -s "$gitignore" ]; then
+    last_char="$(tail -c 1 "$gitignore" 2>/dev/null || true)"
+    [ -n "$last_char" ] && printf '\n' >> "$gitignore"
+  fi
+  printf '%s\n' "$entry" >> "$gitignore"
+  echo "  ✓ marked $entry private in .gitignore"
+}
+
+set_config() {
+  local file="$1" key="$2" value="$3" tmp
+  touch "$file"
+  tmp="$file.tmp.$$"
+  grep -v "^$key:" "$file" > "$tmp" || true
+  printf '%s: %s\n' "$key" "$value" >> "$tmp"
+  mv "$tmp" "$file"
+}
+
+clean_value() {
+  local v="$1"
+  v="${v//$'\r'/ }"
+  v="${v//$'\n'/ }"
+  v="${v//$'\t'/ }"
+  v="${v// | / / }"
+  printf '%s' "$v"
+}
+
+slugify() {
+  printf '%s' "$1" | LC_ALL=C tr 'A-Z' 'a-z' \
+    | LC_ALL=C sed -e 's/[^a-z0-9][^a-z0-9]*/-/g' -e 's/^-//' -e 's/-$//' \
+    | cut -c1-40 | sed 's/-$//'
+}
+
+# ---------------------------------------------------------------------------------------------
+# Parser: one pass over the workspace, emitting tab-separated records. All awk runs with
+# LC_ALL=C so string functions count bytes the same way on every awk; delimiters are ASCII or
+# the whole 3-byte "：", so UTF-8 text is never split.
+#
+#   M file profile            T file title             P file key value
+#   I file id title status fields      S file id title status fields
+#   G file term meaning       C file title responsibility
+#   Q file open|done text     R file id                X file item-id agent-supplement
+#   (fields: key=value joined by \037)
+# ---------------------------------------------------------------------------------------------
+
+AWK_LIB='
+function strip_comments(line,    out, s, e) {
+  out = ""
+  while (1) {
+    if (in_comment) {
+      e = index(line, "-->")
+      if (e == 0) return out
+      line = substr(line, e + 3)
+      in_comment = 0
+    } else {
+      s = index(line, "<!--")
+      if (s == 0) return out line
+      out = out substr(line, 1, s - 1)
+      line = substr(line, s + 4)
+      in_comment = 1
+    }
+  }
+}
+function trim(s) { sub(/^[ \t]+/, "", s); sub(/[ \t\r]+$/, "", s); return s }
+function clean(s) { gsub(/\t/, " ", s); return trim(s) }
+function colon_pos(s,    a, b) {
+  a = index(s, ":"); b = index(s, "：")
+  if (a == 0) return b
+  if (b == 0) return a
+  return (a < b) ? a : b
+}
+function colon_len(s, p) { return (substr(s, p, 1) == ":") ? 1 : 3 }
+function norm_key(k,    n, parts) {
+  k = trim(k)
+  gsub(/[*`]/, "", k)
+  n = split(k, parts, /[ \t]+/)
+  return tolower(parts[n])
+}
+'
+
+AWK_COLLECT='
+BEGIN { TAB = "\t"; US = "\037" }
+function file_kind(f) {
+  if (f == "PLAN.md") return "plan"
+  if (f == "domain/glossary.md") return "glossary"
+  if (f ~ /^domain\/[^\/]+\.md$/) return "context"
+  if (f ~ /^(requirements|pieces)\/[^\/]+\.md$/ && f !~ /\/README\.md$/) return "spec"
+  return "items"
+}
+function flush() {
+  if (kind == "spec" && spec_id != "")
+    print "S" TAB file TAB spec_id TAB spec_title TAB spec_status TAB spec_fields
+  if (kind == "context" && ctx_title != "")
+    print "C" TAB file TAB ctx_title TAB ctx_resp
+  spec_id = ""; ctx_title = ""
+}
+function emit_refs(s,    t) {
+  gsub(/`[^`]*`/, "", s)
+  while (match(s, /(IDEA|MS|DEC|RISK|SRC|REQ|PIECE)-[0-9]+(-[0-9]+)?/)) {
+    t = substr(s, RSTART, RLENGTH)
+    if (RSTART == 1 || substr(s, RSTART - 1, 1) !~ /[A-Za-z0-9]/) print "R" TAB file TAB t
+    s = substr(s, RSTART + RLENGTH)
+  }
+}
+function kv(s,    p, key, val) {
+  p = colon_pos(s)
+  if (p == 0) return 0
+  kv_key = norm_key(substr(s, 1, p - 1))
+  kv_val = clean(substr(s, p + colon_len(s, p)))
+  return (kv_key != "")
+}
+function parse_item(line,    rest, n, parts, i, p) {
+  if (line !~ /^[-*][ \t]+\[[A-Z]+-[0-9]+(-[0-9]+)?\][ \t]/) return 0
+  rest = line
+  sub(/^[-*][ \t]+\[/, "", rest)
+  p = index(rest, "]")
+  it_id = substr(rest, 1, p - 1)
+  rest = substr(rest, p + 1)
+  n = split(rest, parts, / [|] /)
+  it_title = clean(parts[1]); it_status = ""; it_fields = ""
+  for (i = 2; i <= n; i++) {
+    if (!kv(parts[i])) continue
+    if (kv_key == "status") it_status = tolower(kv_val)
+    it_fields = it_fields (it_fields == "" ? "" : US) kv_key "=" kv_val
+  }
+  return 1
+}
+FNR == 1 {
+  flush()
+  in_comment = 0
+  file = FILENAME; sub(/^\.\//, "", file)
+  kind = file_kind(file)
+  seen_h1 = 0; in_header = 0; past_header = 0; marker_done = 0; last_item = ""
+  spec_title = ""; spec_status = ""; spec_fields = ""; ctx_resp = ""
+}
+{
+  raw = $0
+  if (kind == "plan" && !marker_done && raw ~ /lodestar-plan:/) {
+    m = raw; sub(/.*lodestar-plan:[ \t]*/, "", m); sub(/[^a-z].*$/, "", m)
+    print "M" TAB file TAB m
+    marker_done = 1
+  }
+  line = strip_comments(raw)
+  if (line ~ /^[ \t]*$/) next
+  if (line ~ /^[ \t]*[-*][ \t]+\[[ xX]\][ \t]+(Q|问)[ \t]*(:|：)/) {
+    state = (line ~ /^[ \t]*[-*][ \t]+\[ \]/) ? "open" : "done"
+    q = line; sub(/^[ \t]*[-*][ \t]+\[[ xX]\][ \t]+(Q|问)[ \t]*(:|：)/, "", q); q = clean(q)
+    if (q !~ /^<.*>$/) print "Q" TAB file TAB state TAB q
+    emit_refs(line)
+    next
+  }
+  emit_refs(line)
+  if (line ~ /^#[ \t]/) {
+    if (!seen_h1) {
+      seen_h1 = 1; in_header = 1
+      h = line; sub(/^#[ \t]+/, "", h); h = clean(h)
+      if (kind == "plan") print "T" TAB file TAB h
+      else if (kind == "spec" && match(h, /^[A-Z]+-[0-9]+/)) {
+        spec_id = substr(h, 1, RLENGTH); spec_title = clean(substr(h, RLENGTH + 1))
+      } else if (kind == "context") ctx_title = h
+    }
+    next
+  }
+  if (line ~ /^##/) { in_header = 0; past_header = 1; next }
+  if (in_header && line ~ /^[-*][ \t]+[^[ \t]/) {
+    f = line; sub(/^[-*][ \t]+/, "", f)
+    if (kv(f)) {
+      if (kind == "plan") print "P" TAB file TAB kv_key TAB kv_val
+      else if (kind == "spec") {
+        if (kv_key == "status") spec_status = tolower(kv_val)
+        spec_fields = spec_fields (spec_fields == "" ? "" : US) kv_key "=" kv_val
+      } else if (kind == "context" && kv_key == "responsibility") ctx_resp = kv_val
+    }
+    next
+  }
+  if (kind == "items" && parse_item(line)) {
+    print "I" TAB file TAB it_id TAB it_title TAB it_status TAB it_fields
+    last_item = it_id
+    next
+  }
+  if (kind == "items" && last_item != "" && line ~ /^[ \t]+[-*][ \t]+(补充\(agent\)|agent)[ \t]*(:|：)/) {
+    x = line; sub(/^[ \t]+[-*][ \t]+(补充\(agent\)|agent)[ \t]*(:|：)/, "", x)
+    print "X" TAB file TAB last_item TAB clean(x)
+    next
+  }
+  if (line !~ /^[ \t]/) last_item = ""
+  if (kind == "glossary" && past_header && line ~ /^[-*][ \t]+/ && line !~ /^[-*][ \t]+\[/) {
+    g = line; sub(/^[-*][ \t]+/, "", g)
+    p = colon_pos(g)
+    if (p > 0) {
+      term = clean(substr(g, 1, p - 1)); gsub(/[*`]/, "", term)
+      meaning = substr(g, p + colon_len(g, p)); sub(/ [|] .*$/, "", meaning)
+      if (term !~ /^<.*>$/) print "G" TAB file TAB term TAB clean(meaning)
+    }
+  }
+}
+END { flush() }
+'
+
+collect() {
+  local plan="$1" f
+  local files=("./PLAN.md")
+  while IFS= read -r f; do
+    files+=("$f")
+  done < <(cd "$plan" && find . -type f -name '*.md' ! -path './PLAN.md' ! -path '*/.*' \
+             ! -path '*/node_modules/*' | LC_ALL=C sort)
+  (cd "$plan" && LC_ALL=C awk "$AWK_LIB$AWK_COLLECT" "${files[@]}")
+}
+
+plan_field() {
+  collect "$1" | LC_ALL=C awk -F '\t' -v k="$2" '$1 == "P" && $3 == k && !seen { print $4; seen = 1 }'
+}
+
+next_id() {
+  # Count definitions only: a forward reference (compensation: RISK-001) must not skip its number.
+  local prefix="$1" plan="$2" today max
+  case "$prefix" in
+    *[!A-Z]*|"") die "ID prefix must be uppercase letters: $prefix" ;;
+  esac
+  if [ "$prefix" = DEC ]; then
+    today="$(date +%Y%m%d)"
+    max="$(collect "$plan" | LC_ALL=C awk -F '\t' -v d="DEC-$today-" '
+      ($1 == "I" || $1 == "S") && index($3, d) == 1 {
+        n = substr($3, length(d) + 1) + 0; if (n > m) m = n
+      } END { print m + 0 }')"
+    printf 'DEC-%s-%s\n' "$today" "$((max + 1))"
+  else
+    max="$(collect "$plan" | LC_ALL=C awk -F '\t' -v p="$prefix-" '
+      ($1 == "I" || $1 == "S") && index($3, p) == 1 {
+        rest = substr($3, length(p) + 1); sub(/-.*/, "", rest)
+        if (rest ~ /^[0-9]+$/ && rest + 0 > m) m = rest + 0
+      } END { print m + 0 }')"
+    printf '%s-%03d\n' "$prefix" "$((max + 1))"
+  fi
+}
+
+# ---------------------------------------------------------------------------------------------
+# Commands
+# ---------------------------------------------------------------------------------------------
+
+cmd_locate() {
+  locate_plan "$(resolve_root)"
+}
+
+cmd_init() {
+  local profile="$PROFILE_ARG" root rel dest subject project today src rel_file target existing current
+  case "$profile" in software|writing) ;; *) die "init: --profile must be software or writing" ;; esac
+  if [ -n "$ROOT_ARG" ]; then
+    mkdir -p "$ROOT_ARG"
+    root="$(cd "$ROOT_ARG" && pwd -P)"
+  else
+    root="$(pwd -P)"
+  fi
+  if [ -n "$PLAN_ARG" ]; then
+    rel="$PLAN_ARG"
+  elif existing="$(locate_plan "$root")"; then
+    # Re-running init reuses the project's workspace instead of starting a second one in plan/.
+    case "$existing" in
+      "$root") rel="." ;;
+      "$root"/*) rel="${existing#"$root"/}" ;;
+      *) die "init: the configured workspace $existing is outside $root; pass --plan-dir" ;;
+    esac
+  else
+    rel="plan"
+  fi
+  rel="${rel%/}"
+  [ -n "$rel" ] || rel="."
+  case "$rel" in
+    /*|..|../*|*/../*|*/..) die "init: --plan-dir must stay inside the project root" ;;
+  esac
+  if [ "$rel" = . ]; then dest="$root"; else dest="$root/$rel"; fi
+  if [ -f "$dest/PLAN.md" ] && ! is_workspace "$dest"; then
+    die "$dest/PLAN.md exists but is not a Lodestar workspace; choose another --plan-dir"
+  fi
+  if is_workspace "$dest"; then
+    existing="$(workspace_profile "$dest")"
+    [ "$existing" = "$profile" ] || die "workspace at $dest already uses profile '$existing'"
+  fi
+  src="$TPL_DIR/$profile"
+  [ -d "$src" ] || die "missing templates: $src"
+  [ "$CHECK_ONLY" -eq 0 ] || return 0
+  subject="${SUBJECT_ARG:-$PLACEHOLDER_SUBJECT}"
+  project="$(basename "$root")"
+  today="$(date +%Y-%m-%d)"
+
+  echo "Lodestar planning workspace ($profile) at ${dest}"
+  while IFS= read -r rel_file; do
+    target="$dest/$rel_file"
+    if [ -e "$target" ]; then
+      echo "  · kept existing $rel_file"
+      continue
+    fi
+    mkdir -p "$(dirname "$target")"
+    render_into "$src/$rel_file" "$target" "<PROJECT>" "$project" "<SUBJECT>" "$subject" "<DATE>" "$today"
+    echo "  ✓ created $rel_file"
+  done < <(cd "$src" && find . -type f -name '*.md' | sed 's#^\./##' | LC_ALL=C sort)
+
+  # Keep discovery pointing at the workspace this init used.
+  if [ -d "$root/.lodestar" ]; then
+    current=""
+    if [ -f "$root/.lodestar/config" ]; then
+      current="$(sed -n '/^plan-dir:/{s/^plan-dir:[[:space:]]*//p;q;}' "$root/.lodestar/config")"
+    fi
+    if [ "$current" != "$rel" ] && { [ -n "$current" ] || { [ "$rel" != plan ] && [ "$rel" != . ]; }; }; then
+      set_config "$root/.lodestar/config" plan-dir "$rel"
+      echo "  ✓ recorded plan-dir: $rel in .lodestar/config"
+    fi
+  elif [ "$rel" != plan ] && [ "$rel" != . ]; then
+    echo "  · note: hooks find non-default workspaces through .lodestar/config or LODESTAR_PLAN_DIR"
+  fi
+  if [ "$rel" = . ]; then
+    ensure_gitignore_entry "$root" "dashboard.html"
+  else
+    ensure_gitignore_entry "$root" "$rel/dashboard.html"
+  fi
+}
+
+cmd_next_id() {
+  local prefix="${ARGS[1]:-}"
+  [ -n "$prefix" ] || die "next-id requires a prefix such as IDEA, MS, DEC, RISK, SRC, REQ, PIECE"
+  next_id "$prefix" "$(require_plan "$(resolve_root)")"
+}
+
+cmd_add() {
+  local kind="${ARGS[1]:-}" title="${ARGS[2]:-}" file prefix status header plan id fields="" kv key val target line last_char i
+  case "$kind" in
+    idea) file=ideas.md; prefix=IDEA; status=inbox; header="想法池" ;;
+    ms|milestone) file=roadmap.md; prefix=MS; status=planned; header="路线图" ;;
+    dec|decision) file=decisions.md; prefix=DEC; status=accepted; header="决策与挑战" ;;
+    risk) file=risks.md; prefix=RISK; status=open; header="风险与假设" ;;
+    src|source) file=sources.md; prefix=SRC; status=to-read; header="资料与引用" ;;
+    *) die "add: kind must be idea, ms, dec, risk, or src" ;;
+  esac
+  [ -n "$title" ] || die "add: a title is required"
+  plan="$(require_plan "$(resolve_root)")"
+  i=3
+  while [ "$i" -lt "${#ARGS[@]}" ]; do
+    kv="${ARGS[$i]}"
+    i=$((i + 1))
+    key="${kv%%=*}"
+    val="${kv#*=}"
+    [ "$key" != "$kv" ] || die "add: fields must be key=value: $kv"
+    case "$key" in
+      ""|*[!a-z-]*) die "add: field names use lowercase letters and '-': $key" ;;
+    esac
+    val="$(clean_value "$val")"
+    if [ "$key" = status ]; then
+      status="$val"
+    else
+      fields="$fields | $key: $val"
+    fi
+  done
+  id="$(next_id "$prefix" "$plan")"
+  line="- [$id] $(clean_value "$title") | status: $status$fields"
+  target="$plan/$file"
+  if [ ! -f "$target" ]; then
+    printf '# %s\n\n## 条目\n' "$header" > "$target"
+  fi
+  if [ -s "$target" ]; then
+    last_char="$(tail -c 1 "$target" 2>/dev/null || true)"
+    [ -n "$last_char" ] && printf '\n' >> "$target"
+  fi
+  printf '%s\n' "$line" >> "$target"
+  printf '%s\n' "$line"
+}
+
+cmd_new() {
+  local kind="${ARGS[1]:-}" title="${ARGS[2]:-}" plan dir prefix tpl slug id="" path subject
+  case "$kind" in
+    req|requirement) dir=requirements; prefix=REQ; tpl=requirement.md ;;
+    piece) dir=pieces; prefix=PIECE; tpl=piece.md ;;
+    context|ctx) dir=domain; prefix=""; tpl=context.md ;;
+    *) die "new: kind must be req, piece, or context" ;;
+  esac
+  [ -n "$title" ] || die "new: a title is required"
+  plan="$(require_plan "$(resolve_root)")"
+  slug="$(slugify "$title")"
+  mkdir -p "$plan/$dir"
+  if [ -n "$prefix" ]; then
+    id="$(next_id "$prefix" "$plan")"
+    path="$plan/$dir/$id${slug:+-$slug}.md"
+  else
+    [ -n "$slug" ] || slug="context-$(date +%Y%m%d%H%M%S)"
+    path="$plan/$dir/$slug.md"
+  fi
+  [ ! -e "$path" ] || die "new: $path already exists"
+  subject="$(plan_field "$plan" subject)"
+  [ -n "$subject" ] || subject="$PLACEHOLDER_SUBJECT"
+  render_into "$TPL_DIR/specs/$tpl" "$path" "<ID>" "$id" "<TITLE>" "$(clean_value "$title")" \
+    "<DATE>" "$(date +%Y-%m-%d)" "<SUBJECT>" "$subject"
+  printf '%s\n' "$path"
+}
+
+cmd_summary() {
+  local root plan rel
+  root="$(resolve_root)"
+  plan="$(locate_plan "$root")" || return 0
+  if [ "$plan" = "$root" ]; then rel="."; else rel="${plan#"$root"/}"; fi
+  collect "$plan" | LC_ALL=C awk -F '\t' -v rel="$rel" -v tool="$SELF" '
+    function counts(prefix, order,    n, parts, i, out, c, s) {
+      n = split(order, parts, " ")
+      out = ""
+      for (i = 1; i <= n; i++) {
+        c = cnt[prefix SUBSEP parts[i]]
+        if (c > 0) out = out (out == "" ? "" : ", ") c " " parts[i]
+        known[prefix SUBSEP parts[i]] = 1
+      }
+      c = 0
+      for (s in cnt) {
+        split(s, k, SUBSEP)
+        if (k[1] == prefix && !((prefix SUBSEP k[2]) in known)) c += cnt[s]
+      }
+      if (c > 0) out = out (out == "" ? "" : ", ") c " other"
+      return (out == "") ? "none" : out
+    }
+    $1 == "M" { profile = $3 }
+    $1 == "P" { pf[$3] = $4 }
+    $1 == "I" {
+      prefix = $3; sub(/-.*/, "", prefix)
+      st = ($5 == "") ? "unset" : $5
+      cnt[prefix SUBSEP st]++
+      if (prefix == "DEC") { decisions++; if ($6 ~ /(^|\037)override=user/) overrides++ }
+      if (prefix == "RISK" && (st == "open" || st == "mitigating")) open_risks++
+    }
+    $1 == "S" { prefix = $3; sub(/-.*/, "", prefix); cnt["SPEC" SUBSEP (($5 == "") ? "unset" : $5)]++ }
+    $1 == "Q" && $3 == "open" { openq++ }
+    END {
+      head = "## PLANNING WORKSPACE (" rel "/, profile " (profile == "" ? "?" : profile)
+      if (pf["subject"] != "" && pf["subject"] !~ /^<.*>$/) head = head ", subject " pf["subject"]
+      print head ")"
+      line = ""
+      if (pf["focus"] != "" && pf["focus"] !~ /^<.*>$/) line = "Focus: " pf["focus"]
+      if (pf["phase"] != "" && pf["phase"] !~ /^<.*>$/) line = line (line == "" ? "" : " | ") "Phase: " pf["phase"]
+      if (line != "") print line
+      print "Ideas: " counts("IDEA", "inbox exploring adopted parked rejected") \
+        " | Specs: " counts("SPEC", "draft ready handed-off in-progress done dropped") \
+        " | Open questions: " (openq + 0) " | Open risks: " (open_risks + 0) \
+        " | Decisions: " (decisions + 0) " (" (overrides + 0) " user override)"
+      print "Capture ideas, decisions and risks as one-line ID entries; specs from templates; regenerate the dashboard after material changes. Helper: " tool " (add | new | dashboard | doctor). Protocol: lodestar skill, references/planning/README.md."
+    }'
+}
+
+main() {
+  local cmd
+  parse_args "$@"
+  cmd="${ARGS[0]:-}"
+  case "$cmd" in
+    locate) cmd_locate ;;
+    init) cmd_init ;;
+    add) cmd_add ;;
+    new) cmd_new ;;
+    next-id) cmd_next_id ;;
+    summary) cmd_summary ;;
+    dashboard) cmd_dashboard ;;
+    doctor) cmd_doctor ;;
+    ""|help) usage ;;
+    *) die "unknown command: $cmd (try --help)" ;;
+  esac
+}
+
+# ---------------------------------------------------------------------------------------------
+# Dashboard: records in, one self-contained HTML file out. No agent ever edits the HTML.
+# ---------------------------------------------------------------------------------------------
+
+anchor_records() {
+  # "A key value" for each "- label Key: value" Anchor bullet; comments and placeholders dropped.
+  LC_ALL=C awk "$AWK_LIB"'
+    BEGIN { TAB = "\t" }
+    {
+      line = strip_comments($0)
+      if (line !~ /^[-*][ \t]+/) next
+      sub(/^[-*][ \t]+/, "", line)
+      p = colon_pos(line)
+      if (p == 0) next
+      key = norm_key(substr(line, 1, p - 1))
+      val = clean(substr(line, p + colon_len(line, p)))
+      if (key != "" && val != "" && val !~ /^<.*>$/) print "A" TAB key TAB val
+    }' "$1"
+}
+
+html_text() {
+  replace_all "$1" '&' '&amp;'
+  replace_all "$REPLACED" '<' '&lt;'
+  replace_all "$REPLACED" '>' '&gt;'
+  printf '%s' "$REPLACED"
+}
+
+cmd_dashboard() {
+  local root plan out out_dir base project generated records title html_lang tmp
+  root="$(resolve_root)"
+  plan="$(require_plan "$root")"
+  case "$LANG_ARG" in zh|en) ;; *) die "--lang must be zh or en" ;; esac
+  out="${OUT_ARG:-$plan/dashboard.html}"
+  case "$out" in /*) ;; *) out="$(pwd -P)/$out" ;; esac
+  out_dir="$(dirname "$out")"
+  mkdir -p "$out_dir"
+  out_dir="$(cd "$out_dir" && pwd -P)"
+  out="$out_dir/$(basename "$out")"
+  # Relative links when the page sits in the workspace; absolute file links otherwise.
+  if [ "$out_dir" = "$plan" ]; then base=""; else base="file://$plan/"; fi
+  project="$(basename "$root")"
+  generated="$(date '+%Y-%m-%d %H:%M')"
+  records="$(collect "$plan")"
+  if [ "$NO_PRIVATE" -eq 0 ] && [ -f "$root/.lodestar/anchor.md" ]; then
+    records="$records"$'\n'"$(anchor_records "$root/.lodestar/anchor.md")"
+  fi
+  title="$(printf '%s\n' "$records" | LC_ALL=C awk -F '\t' '$1 == "T" && !seen { print $3; seen = 1 }')"
+  case "$title" in ""|"<"*">") title="$project" ;; esac
+  if [ "$LANG_ARG" = en ]; then
+    html_lang="en"
+    title="$title · Planning dashboard"
+  else
+    html_lang="zh-CN"
+    title="$title · 规划看板"
+  fi
+  tmp="$out.tmp.$$"
+  {
+    render_into_stdout "$SCRIPT_DIR/lib/dashboard-head.html" "__LANG__" "$html_lang" "__TITLE__" "$(html_text "$title")"
+    printf '%s\n' "$records" | LC_ALL=C awk -F '\t' -v project="$project" -v generated="$generated" \
+      -v base="$base" -v lang="$LANG_ARG" "$AWK_LIB$(cat "$SCRIPT_DIR/lib/dashboard.awk")"
+  } > "$tmp"
+  mv "$tmp" "$out"
+  printf '%s\n' "$out"
+}
+
+# ---------------------------------------------------------------------------------------------
+# Doctor: executable invariants. FAIL lines make the exit status non-zero.
+# ---------------------------------------------------------------------------------------------
+
+DOCTOR_FAILS=0
+DOCTOR_WARNS=0
+
+anchor_value() {
+  printf '%s\n' "$1" | awk -F '\t' -v k="$2" '$2 == k && !seen { print $3; seen = 1 }'
+}
+
+doctor_line() {
+  case "$1" in
+    FAIL) DOCTOR_FAILS=$((DOCTOR_FAILS + 1)) ;;
+    WARN) DOCTOR_WARNS=$((DOCTOR_WARNS + 1)) ;;
+  esac
+  printf '  %-5s %s\n' "$1" "$2"
+}
+
+char_count() {
+  if command -v perl >/dev/null 2>&1; then
+    perl -Mopen=:std,:encoding\(UTF-8\) -0ne 'print length($_)' "$1"
+  else
+    wc -m < "$1" | tr -d ' '
+  fi
+}
+
+AWK_DOCTOR='
+BEGIN {
+  TAB = "\t"; US = "\037"
+  ok["IDEA"] = " inbox exploring adopted parked rejected "
+  ok["MS"] = " planned active done dropped "
+  ok["DEC"] = " accepted superseded revisit "
+  ok["RISK"] = " open mitigating accepted closed "
+  ok["SRC"] = " to-read read cited rejected "
+  ok["SPEC"] = " draft ready handed-off in-progress done dropped "
+}
+function field(fields, key,    n, parts, i, p) {
+  n = split(fields, parts, US)
+  for (i = 1; i <= n; i++) { p = index(parts[i], "="); if (substr(parts[i], 1, p - 1) == key) return substr(parts[i], p + 1) }
+  return ""
+}
+function check_status(kind, id, status, file) {
+  if (status == "") print "WARN" TAB id " in " file " has no status"
+  else if (index(ok[kind], " " status " ") == 0) print "WARN" TAB id " in " file " has unknown status \"" status "\" (expected:" ok[kind] ")"
+}
+$1 == "I" || $1 == "S" {
+  if ($3 in where) print "FAIL" TAB "duplicate ID " $3 " (" where[$3] ", " $2 ")"
+  where[$3] = $2; defined[$3] = 1
+  kind = ($1 == "S") ? "SPEC" : $3
+  sub(/-.*/, "", kind)
+  if (kind in ok) check_status(kind, $3, $5, $2)
+  if ($1 == "I" && $3 ~ /^DEC-/ && field($6, "override") == "user") {
+    if (field($6, "compensation") == "") print "WARN" TAB $3 " is a user override without compensation"
+    if (field($6, "revisit") == "") print "WARN" TAB $3 " is a user override without a revisit trigger"
+  }
+  if ($1 == "S" && $5 ~ /^(ready|handed-off|in-progress|done)$/) print "SPEC" TAB $2 TAB $3
+  next
+}
+$1 == "R" { ref[$3] = (($3 in ref) ? ref[$3] : $2); next }
+$1 == "P" && ($3 == "blueprint" || $3 == "focus") && $4 ~ /^<.*>$/ { print "WARN" TAB "PLAN.md " $3 " is still a placeholder"; next }
+END {
+  for (id in ref) if (!(id in defined)) print "WARN" TAB id " is referenced in " ref[id] " but never defined"
+}
+'
+
+# Template placeholders are angle brackets holding non-ASCII text (<一句话>), outside code.
+AWK_PLACEHOLDERS='
+/^```/ { fence = !fence; next }
+fence { next }
+{ l = $0; gsub(/`[^`]*`/, "", l); if (l ~ /<[^<>!][^<>]*[^ -~<>][^<>]*>|<[^ -~<>!][^<>]*>/) n++ }
+END { print n + 0 }'
+
+doctor_spec() {
+  # doctor_spec <plan> <relative file> <id>: a spec at ready or later must be context-closed.
+  local plan="$1" rel="$2" id="$3" path placeholders unchecked
+  path="$plan/$rel"
+  placeholders="$(LC_ALL=C awk "$AWK_PLACEHOLDERS" "$path")"
+  unchecked="$(LC_ALL=C awk '
+    /^##/ { inside = ($0 ~ /上下文闭包|[Cc]ontext closure/) ; next }
+    inside && /^[ \t]*[-*][ \t]+\[ \]/ { n++ }
+    END { print n + 0 }' "$path")"
+  if [ "${placeholders:-0}" -gt 0 ]; then
+    doctor_line FAIL "$id ($rel) is past draft but still has $placeholders template placeholder line(s)"
+  fi
+  if [ "${unchecked:-0}" -gt 0 ]; then
+    doctor_line FAIL "$id ($rel) is past draft with $unchecked unticked context-closure item(s)"
+  fi
+}
+
+cmd_doctor() {
+  local root plan state_dir records anchor goal done_when check n budget name kind a b c line drift_date age
+  root="$(resolve_root)"
+  state_dir="$root/.lodestar"
+  echo "Lodestar doctor - $root"
+
+  if [ -d "$state_dir" ]; then
+    if [ -f "$state_dir/anchor.md" ]; then
+      anchor="$(anchor_records "$state_dir/anchor.md")"
+      goal="$(anchor_value "$anchor" goal)"
+      done_when="$(anchor_value "$anchor" done-when)"
+      check="$(anchor_value "$anchor" check)"
+      if [ -n "$goal" ]; then doctor_line ok "Anchor Goal is set"; else doctor_line FAIL "Anchor Goal is empty or a placeholder (.lodestar/anchor.md)"; fi
+      if [ -n "$done_when" ]; then doctor_line ok "Anchor Done-when is set"; else doctor_line FAIL "Anchor Done-when is empty or a placeholder"; fi
+      drift_date="$(printf '%s\n' "$check" | awk 'match($0, /[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]/) && !seen { print substr($0, RSTART, RLENGTH); seen = 1 }')"
+      if [ -z "$drift_date" ]; then
+        doctor_line WARN "Anchor Drift check has no date; record the last alignment check"
+      else
+        age="$(awk -v a="$drift_date" -v b="$(date +%Y-%m-%d)" '
+          function days(s,    p, y, m, d, era, yoe, doy) {
+            split(s, p, "-"); y = p[1] + 0; m = p[2] + 0; d = p[3] + 0
+            y -= (m <= 2); era = int(y / 400); yoe = y - era * 400
+            doy = int((153 * (m + (m > 2 ? -3 : 9)) + 2) / 5) + d - 1
+            return era * 146097 + yoe * 365 + int(yoe / 4) - int(yoe / 100) + doy
+          }
+          BEGIN { print days(b) - days(a) }')"
+        if [ "$age" -gt 14 ]; then doctor_line WARN "Anchor Drift check is $age days old"; else doctor_line ok "Anchor Drift check dated $drift_date"; fi
+      fi
+    else
+      doctor_line FAIL "missing .lodestar/anchor.md"
+    fi
+    if [ -f "$state_dir/state.md" ]; then
+      n="$(LC_ALL=C awk '
+        /^#/ { gaps = ($0 ~ /[Gg]ap|差距|开放问题/); next }
+        gaps && /^[ \t]*[-*][ \t]/ && $0 !~ /^[ \t]*[-*][ \t]+</ && tolower($0) !~ /evidence|证据/ { n++ }
+        END { print n + 0 }' "$state_dir/state.md")"
+      if [ "$n" -gt 0 ]; then
+        doctor_line WARN ".lodestar/state.md has $n open gap/question line(s) without evidence (cite a source or write evidence: missing)"
+      fi
+    fi
+    for name in log state; do
+      if [ "$name" = log ]; then budget=65536; else budget=131072; fi
+      if [ -f "$state_dir/$name.md" ]; then
+        n="$(char_count "$state_dir/$name.md")"
+        if [ "$n" -gt "$budget" ]; then
+          doctor_line FAIL ".lodestar/$name.md is over budget ($n / $budget chars); consolidate"
+        fi
+      fi
+    done
+  else
+    doctor_line WARN "no .lodestar/ here; orientation memory is not initialized (lodestar init)"
+  fi
+
+  if plan="$(locate_plan "$root")"; then
+    records="$(collect "$plan")"
+    n="$(printf '%s\n' "$records" | awk -F '\t' '$1 == "I" || $1 == "S" { n++ } END { print n + 0 }')"
+    doctor_line ok "planning workspace ${plan#"$root"/} ($n entries)"
+    while IFS="$(printf '\t')" read -r kind a b c; do
+      case "$kind" in
+        FAIL|WARN) doctor_line "$kind" "$a" ;;
+        SPEC) doctor_spec "$plan" "$a" "$b" ;;
+      esac
+    done < <(printf '%s\n' "$records" | LC_ALL=C awk -F '\t' "$AWK_DOCTOR" | LC_ALL=C sort)
+  else
+    doctor_line ok "no planning workspace"
+  fi
+
+  printf 'doctor: %d failure(s), %d warning(s)\n' "$DOCTOR_FAILS" "$DOCTOR_WARNS"
+  [ "$DOCTOR_FAILS" -eq 0 ]
+}
+
+main "$@"

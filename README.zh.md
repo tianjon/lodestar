@@ -73,7 +73,10 @@ AI 编程代理擅长"接着最近一句话往下做"。但真实项目需要更
 | 🗺️ **轻量领域模型** | `.lodestar/domain.md` 记录术语、限界上下文、核心对象、能力与开放问题。 |
 | 📊 **扁平状态与决策** | `.lodestar/state.md` 让当前事实、开放问题/差距、证据与决策摘要持续可见,不要求维护重型 ledger。 |
 | 📝 **有意义的日志** | `.lodestar/log.md` 只记录目标/证据/决策/领域/行动的变化,不沦为对话流水。 |
-| 🪝 **生命周期 Hook** | 可选的 Claude Code / Codex hook，加载上下文、提醒父代理接收交接，并在结束时最多追加一次保存检查。 |
+| 🪝 **生命周期 Hook** | 可选的 Claude Code / Codex hook：加载上下文，逐条检查用户消息里的新想法、目标变化与冲突，提醒父代理接收交接，并按频率限制在结束时追加保存检查。 |
+| ⚖️ **第一性挑战** | 请求与目标、已定决策或不能弯曲的约束冲突时，带证据提醒一次；你坚持时照做，记录这次坚持并给出补偿，而不是反复争论。 |
+| 🗂️ **规划工作区** *(可选)* | 面向产品规划或写文章：想法池、路线图、决策、风险、领域模型或资料来源，以及可交给其他 agent 的规格，全部是带稳定编号的一行条目，受版本管理。 |
+| 🖥️ **自动生成的 Dashboard** | `lodestar dashboard` 把当前计划渲染成一个自包含的 HTML 文件。 |
 | 📦 **可移植技能** | 纯 Markdown + bash,零运行时依赖,不绑定单一 agent harness。 |
 
 ## 🔁 工作原理
@@ -155,9 +158,22 @@ cd /path/to/your/project
 
 Hook 是可选、可审查的。Codex 用户需先用 `/hooks` 审查并信任已配置的 hook,它们才会生效。
 
-只有与当前版本生成内容逐字节一致的 hook 配置才会被自动替换或删除。混合配置、符号链接和旧版配置均保留；
-可用 `lodestar hooks print` 生成参考，手动合并时保留权限、环境变量和其他 hook。
-详见 [hook 行为与兼容边界](docs/zh/hooks.md)，包括结束时最多一次额外模型调用的成本。
+Claude Code 项目级 hook 写入个人的 `.claude/settings.local.json`（已加入 gitignore），不会改动已有的共享
+`.claude/settings.json`。只有与当前版本生成内容逐字节一致的 hook 配置才会被自动替换或删除；混合配置、符号链接和
+旧版配置均保留。可用 `lodestar hooks print` 生成参考手动合并，或改用 Claude Code 插件安装（插件自带 hook，
+无需修改配置文件）。详见 [hook 行为与兼容边界](docs/zh/hooks.md)，包括 Stop 检查的频率控制（`LODESTAR_STOP_EVERY`）。
+
+### 4. 在对话中做规划(可选)
+
+例如为 `../my-product` 单独建一个规划仓库 `my-product-docs`:
+
+```bash
+~/.lodestar/bin/lodestar init --plan software --subject ../my-product --hooks claude   # 写文章用 --plan writing
+```
+
+之后正常聊天即可。新想法进入 `plan/ideas.md`,决策与挑战进入 `plan/decisions.md`,风险进入 `plan/risks.md`,
+术语进入 `plan/domain/`。需要交给其他 agent 时,agent 会从自包含的模板创建 `plan/requirements/REQ-001-….md`。
+`lodestar dashboard` 生成 `plan/dashboard.html`,`lodestar doctor` 检查不变量。详见 [规划层设计](docs/zh/planning.md)。
 
 ## 🎯 何时使用
 
@@ -167,6 +183,7 @@ Hook 是可选、可审查的。Codex 用户需先用 `/hooks` 审查并信任�
 - 项目跨越多个会话或多次上下文压缩;
 - Claude Code、Codex、任务技能或子代理之间需要紧凑交接;
 - 领域语言、决策与开放问题/差距需要长期可见。
+- 通过长期对话规划产品或写文章,希望想法、决策和规格沉淀成受版本管理的文档。
 
 **不必用 Lodestar:**
 
@@ -190,6 +207,7 @@ Hook 是可选、可审查的。Codex 用户需先用 `/hooks` 审查并信任�
 - [为什么需要 Lodestar](docs/zh/why-lodestar.md) —— 定向衰减问题
 - [设计与架构](docs/zh/design.md) —— 核心、hook、轻量 DDD、端口-适配器
 - [Lodestar 如何影响 Agent 产出](docs/zh/output-path.md) —— 为什么状态必须改变下一步
+- [规划层设计](docs/zh/planning.md) —— 想法池、第一性挑战、需求规格、Dashboard
 - [为什么这套方法有效](docs/zh/effectiveness.md) —— 认知科学依据与诚实的边界
 - [开源运营说明](docs/zh/open-source.md) —— 承诺与我们避免什么
 

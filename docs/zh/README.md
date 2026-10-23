@@ -12,7 +12,8 @@ Lodestar 是面向 AI coding agent 的项目记忆与 anti-drift 层。它帮助
 2. [设计与架构](design.md)
 3. [Lodestar 如何影响 agent 产出](output-path.md)
 4. [为什么这套方法有效](effectiveness.md)
-5. [开源运营说明](open-source.md)
+5. [规划层设计](planning.md)
+6. [开源运营说明](open-source.md)
 
 ## 一句话版本
 
@@ -26,6 +27,7 @@ Lodestar 不是一个“什么都记住”的地方，而是项目级定向层�
 | hook、状态文件和轻量 DDD 如何组合？ | [设计与架构](design.md) |
 | 记录下来的状态如何影响下一步行动？ | [Lodestar 如何影响 agent 产出](output-path.md) |
 | 为什么它能减少跑偏？ | [为什么这套方法有效](effectiveness.md) |
+| 想法池、第一性挑战、需求规格和 Dashboard 如何工作？ | [规划层设计](planning.md) |
 | 开源项目应该如何诚实表达它？ | [开源运营说明](open-source.md) |
 
 - [Hook 行为与兼容边界](hooks.md)

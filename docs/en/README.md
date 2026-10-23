@@ -12,7 +12,8 @@ Honest pilot results — what is and isn't supported — live in [eval findings]
 2. [Design and architecture](design.md)
 3. [How Lodestar shapes output](output-path.md)
 4. [Why the approach is effective](effectiveness.md)
-5. [Open-source operating notes](open-source.md)
+5. [Planning layer design](planning.md)
+6. [Open-source operating notes](open-source.md)
 
 ## Read By Question
 
@@ -22,6 +23,7 @@ Honest pilot results — what is and isn't supported — live in [eval findings]
 | How do hooks, state files, and light DDD fit together? | [Design and architecture](design.md) |
 | How does recorded state affect the next agent action? | [How Lodestar shapes output](output-path.md) |
 | Why should this reduce drift? | [Why the approach is effective](effectiveness.md) |
+| How do ideas, challenges, specs, and the dashboard work? | [Planning layer design](planning.md) |
 | How should contributors talk about the project honestly? | [Open-source operating notes](open-source.md) |
 
 ## One Sentence

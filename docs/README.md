@@ -23,6 +23,8 @@ Documents are split by language so each version can read naturally and stay easy
 | See the architecture and hook model | [Design and architecture](en/design.md) / [设计与架构](zh/design.md) |
 | Understand how state changes output | [How Lodestar shapes output](en/output-path.md) / [Lodestar 如何影响 agent 产出](zh/output-path.md) |
 | Review the cognitive science and limits | [Why the approach is effective](en/effectiveness.md) / [为什么这套方法有效](zh/effectiveness.md) |
+| Plan a product or write articles through conversation | [Planning layer design](en/planning.md) / [规划层设计](zh/planning.md) |
+| Understand hook cost and compatibility | [Hook behavior](en/hooks.md) / [Hook 行为与兼容边界](zh/hooks.md) |
 | Contribute or package Lodestar | [Open-source operating notes](en/open-source.md) / [开源运营说明](zh/open-source.md) |
 | Test whether Lodestar has value | [Eval protocol](../evals/README.md) |
 
@@ -36,7 +38,8 @@ Start with the [English docs home](en/README.md), or jump directly:
 2. [Design and architecture](en/design.md)
 3. [How Lodestar shapes output](en/output-path.md)
 4. [Why the approach is effective](en/effectiveness.md)
-5. [Open-source operating notes](en/open-source.md)
+5. [Planning layer design](en/planning.md)
+6. [Open-source operating notes](en/open-source.md)
 
 ### 中文
 
@@ -46,7 +49,8 @@ Start with the [English docs home](en/README.md), or jump directly:
 2. [设计与架构](zh/design.md)
 3. [Lodestar 如何影响 agent 产出](zh/output-path.md)
 4. [为什么这套方法有效](zh/effectiveness.md)
-5. [开源运营说明](zh/open-source.md)
+5. [规划层设计](zh/planning.md)
+6. [开源运营说明](zh/open-source.md)
 
 ## Short Version / 一句话版本
 
@@ -63,6 +67,10 @@ Lodestar 不是“什么都记住”的地方，而是项目级定向层：让 A
   open questions.
 - **GAP / 差距**: requirement vs current reality, with evidence and confidence.
 - **Hooks / 生命周期 Hook**: optional enforcement points that load context before agents drift.
+- **Challenge / 第一性挑战**: name a material conflict once with evidence; if the user insists,
+  comply and compensate.
+- **Planning workspace / 规划工作区**: optional tracked products (ideas, roadmap, decisions, risks,
+  domain, specs, dashboard) for software planning or article writing.
 - **Loop / 闭环**: directive -> domain parse -> goal -> GAP -> decision -> next action -> output ->
   state update.
 

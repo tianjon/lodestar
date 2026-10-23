@@ -18,6 +18,8 @@ or priority may have changed, propose a re-anchor. Do not silently rewrite the A
 | **State Projection** | Current state, active gaps/questions, decision summary, evidence summary | Rewriting history to look cleaner |
 | **Goal-Change Diagnosis** | Evidence-backed inference that the primary Goal or branch priority may have changed | Treating one-off asides or model enthusiasm as a new goal |
 | **Skill Bridge** | Aligning task skills and subagents with the active Goal or open gap/question | Replacing task-specific methods |
+| **Challenge** | First-principles objections, user overrides, compensation, revisit triggers | Vetoing the user's goal or re-arguing settled overrides |
+| **Planning Workspace** (optional) | Tracked products: ideas, roadmap, decisions, risks, domain model, specs, dashboard | Agent orientation memory, which stays in `.lodestar/` |
 
 ## Core Objects
 
@@ -106,6 +108,23 @@ A concrete next step chosen because it serves the active Goal and reduces a gap.
 A task-specific workflow such as TDD, debugging, review, or superpowers. Lodestar frames why the
 skill is being invoked and records what changed afterward.
 
+### Challenge
+
+A first-principles objection: the request conflicts with the Goal, a Decision, a constraint that
+does not bend, or strong evidence. Raised once with evidence, cost, and an alternative. If the user
+insists, the Decision records `challenge`, `override: user`, `compensation` (guards, tests, a third
+path, a parked alternative), and `revisit`.
+
+### Planning objects (optional workspace)
+
+- `Idea` (`IDEA-n`): a captured possibility with status `inbox → exploring → adopted | parked |
+  rejected`. Agent additions are marked `补充(agent)`.
+- `Milestone` (`MS-n`): a phase with an observable done-when.
+- `Risk` (`RISK-n`): a risk or untested assumption with a signal and a mitigation.
+- `Spec` (`REQ-n` / `PIECE-n`): a self-contained requirement or article brief for another agent,
+  `ready` only after its context-closure check.
+- `Subject`: the project being planned, named in `PLAN.md`; read-only evidence by default.
+
 ## Relationships
 
 ```text
@@ -120,6 +139,9 @@ GAP compares Requirement with CurrentReality or Practice.
 Evidence supports Practice, State, DomainMap, and Decision.
 Decision resolves or narrows a GAP.
 Action implements Decision or reduces GAP.
+Challenge questions a Directive or plan; an override records Decision + compensation.
+Idea may be adopted into Milestone or Spec; Spec serves Idea/Goal and cites Decisions.
+Subject supplies Evidence for planning claims.
 SkillRun executes Action using a task-specific method.
 StateProjection summarizes log events into current State.
 ```
@@ -138,3 +160,7 @@ StateProjection summarizes log events into current State.
 - Every Decision needs an identifier and a short rationale.
 - Task skills may decide how to work, but Lodestar decides whether the work still serves the active Goal.
 - External recall systems can supply Evidence; they do not replace the Anchor.
+- An overridden Challenge is not raised again without new evidence or a fired revisit trigger.
+- Planning IDs are never renumbered or reused; entries change status instead of being deleted.
+- Agent additions are distinguishable from user intent.
+- A Spec is `ready` only when an agent holding just that file could start without asking.

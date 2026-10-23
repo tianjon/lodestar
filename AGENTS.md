@@ -1,7 +1,8 @@
 # AGENTS.md — Lodestar
 
 Lodestar is a **portable project-level goal-orientation, anti-drift, and lightweight domain
-modeling skill** for AI coding agents, packaged for both **Claude Code** (`~/.claude/skills/`)
+modeling skill** for AI coding agents, with an optional planning workspace for product planning and
+article writing, packaged for both **Claude Code** (`~/.claude/skills/`)
 and **Codex** (`~/.codex/skills/` / `.codex-plugin/`). Version **1.3.0**.
 
 It has zero runtime dependencies for the skill itself. The repo includes plain bash convenience
@@ -18,12 +19,13 @@ and subagents stay oriented to the active goal. Full spec:
 
 | Dir | Description |
 |-----|-------------|
-| `skills/lodestar/` | The skill. `SKILL.md` is the entry; `references/` holds the playbook, grounding, ontology, pointer snippet, and templates. Self-contained. |
-| `hooks/` | Shared Claude Code / Codex lifecycle hook scripts and `hooks.json`. Hooks read `.lodestar/` and inject reminders; they do not rewrite project files. |
+| `skills/lodestar/` | The skill. `SKILL.md` is the entry; `references/` holds the playbook, grounding, ontology, challenge protocol, planning protocol, pointer snippet, and templates. Self-contained. |
+| `skills/lodestar/scripts/lodestar-plan` | Optional planning-workspace helper (bash + POSIX awk): `init`, `add`, `new`, `next-id`, `summary`, `dashboard`, `doctor`. Ships with the skill so skill-only installs can use it. |
+| `hooks/` | Shared Claude Code / Codex lifecycle hook scripts and `hooks.json`. Hooks read `.lodestar/` (and a planning workspace summary) and inject reminders; they do not rewrite project files. Per-session turn markers live outside the project. |
 | `.claude-plugin/` | `marketplace.json` so Claude Code can install it as a plugin. |
 | `.codex-plugin/` | `plugin.json` so Codex can load skills and bundled hooks as a plugin. |
-| `docs/` | Bilingual user-facing rationale, design, output-path, effectiveness, and open-source operating notes. |
-| `bin/lodestar` | CLI: `init`, `status`, `hooks`, `install`. |
+| `docs/` | Bilingual user-facing rationale, design, output-path, effectiveness, hooks, planning-layer design, and open-source operating notes. |
+| `bin/lodestar` | CLI: `init` (incl. `--plan`), `status`, `hooks`, `install`, plus `add`, `new`, `next-id`, `dashboard`, `doctor` delegated to the skill's `lodestar-plan`. |
 | `install.sh` | Dual-target skill installer (Claude Code + Codex), symlink by default. |
 | `CONTRIBUTING.md` / `CODE_OF_CONDUCT.md` | Public community guidance for GitHub users and contributors. |
 
@@ -35,9 +37,14 @@ packaging and convenience; the skill must still explain a complete manual bootst
 
 ## Conventions
 
-- **Use only `.lodestar/` for Lodestar state.** Do not add alternate state namespaces.
-- **No runtime dependency in the skill.** Bash scripts are repo conveniences; keep the protocol
-  markdown-first.
+- **Use only `.lodestar/` for Lodestar state.** Do not add alternate state namespaces. A planning
+  workspace (`PLAN.md` marked `lodestar-plan`) is tracked project *product*, not agent state; keep
+  orientation memory out of it and products out of `.lodestar/`.
+- **No runtime dependency in the skill.** Bash scripts are conveniences; keep the protocol
+  markdown-first. The skill's own `scripts/` may hold optional helpers in plain bash + POSIX awk
+  (bash 3.2 compatible, no jq/python/rg); every step they perform must also be doable by hand.
+- **Agents do not re-render structure.** Planning files are one-line entries with stable IDs edited
+  in place; counts, boards, and dashboards come from the deterministic helper (see evals findings).
 - **Budgets** are character counts: `.lodestar/log.md` ≤ 64K, `.lodestar/state.md` ≤ 128K.
   Keep these in sync between `SKILL.md`, templates, and `bin/lodestar`.
 - **The project pointer block** in `references/project-pointer.md` is the single source for what

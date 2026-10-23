@@ -2,6 +2,50 @@
 
 ## Unreleased
 
+- **`lodestar dashboard`** renders the workspace (plus the private Anchor unless `--no-private`) to
+  one self-contained `dashboard.html`: focus, KPI tiles, milestones with progress meters, a spec
+  table, an idea board with agent supplements, decisions with override flags, risks with
+  icon-and-label severity, open questions, and the domain model or sources. Light and dark themes,
+  phone-width layout, all text escaped, `--lang zh|en`. Git-ignored by default.
+- **`lodestar doctor`** turns invariants into an exit status: unfilled Anchor Goal/Done-when, budget
+  overruns, stale or missing drift-check dates, duplicate IDs, references to undefined IDs, unknown
+  statuses, overrides without compensation or revisit trigger, and specs past `draft` that still
+  hold template placeholders or unticked context-closure items. (Closes TASKS.md T3.)
+- **`evals/tasks/planning-conversation/`**: eight cold-start turns with a planted first-principles
+  conflict and a user override; a representation-agnostic scorer validated by good/bad fixtures; an
+  any-agent A/B/C driver; a blind judge rubric. Live arms have not been run yet.
+- **Planning layer.** `lodestar init --plan software|writing [--plan-dir DIR] [--subject PATH]`
+  creates a tracked planning workspace next to `.lodestar/`: idea pool, roadmap, decisions with
+  challenges, risks, and a domain model (software) or sources and style guide (writing), plus spec
+  directories. Entries are one line with stable IDs, edited in place; agent additions are marked
+  `补充(agent)`. `.lodestar/` stays the private orientation memory. Design:
+  `docs/en/planning.md`, `docs/zh/planning.md`.
+- **First-principles challenge** (SKILL.md Protocol 7, `references/challenge.md`): raise a material
+  conflict once with evidence and an alternative; on override, comply, record `challenge`,
+  `override: user`, `compensation`, `revisit`, and never re-litigate without new evidence.
+- **Specs for other agents**: `REQ-` and `PIECE-` templates with a context-closure check, created by
+  `lodestar new req|piece|context`. **Thinking-model router** in
+  `references/planning/thinking-models.md`.
+- `lodestar add|new|next-id|summary|locate` delegate to the skill-bundled
+  `skills/lodestar/scripts/lodestar-plan` (bash 3.2 + POSIX awk). IDs are allocated from definitions
+  only, so forward references never make numbers skip; template examples in comments are ignored.
+- SessionStart/SubagentStart append a workspace summary; UserPromptSubmit points new ideas at the
+  workspace; Stop treats workspace writes as saves. `lodestar status` shows the workspace.
+- Claude Code project hooks now install into the personal `.claude/settings.local.json` (added to
+  `.gitignore`) when no Lodestar entry exists yet, so an existing shared `.claude/settings.json`
+  no longer blocks installation. Files that already hold Lodestar entries are reused, never
+  duplicated. `init --hooks` preflights every target before writing state, so a refused install
+  leaves nothing half-configured. `.gitignore` checks treat `x`, `x/`, `/x`, `/x/` as one rule.
+- Added a `UserPromptSubmit` hook: one short turn check per user message (on-track, new idea,
+  goal change, material conflict) with the Anchor brief.
+- The Stop pass is skipped when state was written during the turn and otherwise runs at most once
+  per `LODESTAR_STOP_EVERY` unsaved turns (default 3; 1 = every unsaved turn, 0 = off). PreToolUse
+  injects its drift check once per turn. Both fall back to the previous behavior without turn
+  tracking. Markers hold timestamps and a counter only and live outside the project.
+- Log injection keeps the newest entries (2,000 characters, from an entry boundary) instead of a
+  head/tail split whose head was mostly template text.
+- PreToolUse / UserPromptSubmit briefs take only the Anchor's Mode, Goal, Done-when and Next action
+  bullets, not template footer text.
 - Fixed YAML frontmatter parsing and added parser-backed CI coverage (test-only PyYAML).
 - Hook install/uninstall now preserve mixed, symlinked, and older configs; only exact generated
   files are owned. Both targets are preflighted, and `hooks print` supports manual merging.

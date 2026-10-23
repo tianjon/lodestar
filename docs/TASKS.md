@@ -51,6 +51,10 @@ Branch: `codex/lodestar-v1-2`. Work top-to-bottom. Each task is self-contained.
 - **Acceptance:** `test_doctor_flags_placeholder_anchor` (fresh `init` → unfilled template → doctor
   exits non-zero and names the empty Goal) and `test_doctor_passes_on_filled_anchor` (filled-in
   anchor → exits 0). Add `doctor` to `--help` text.
+- **STATUS: ✅ done** as `lodestar doctor` (skill helper `scripts/lodestar-plan doctor`), covered by
+  `test_doctor_turns_invariants_into_exit_status`. Implemented: Goal/Done-when placeholders, budgets,
+  drift-check date and age, open gaps without evidence, plus planning-workspace invariants. Not
+  implemented: "Goal unchanged across a long log".
 
 ### T4 — `lodestar consolidate`: mechanical paging of `log.md`
 - **Why:** consolidation is currently 100% manual/model-driven (maintenance burden on the least
@@ -77,6 +81,7 @@ Branch: `codex/lodestar-v1-2`. Work top-to-bottom. Each task is self-contained.
 - **Acceptance:** update `test_hook_scripts_emit_expected_context` to assert the PreToolUse output
   still contains `LODESTAR_DRIFT_CHECK` and the Goal line, but is materially shorter (e.g. assert it
   does not contain a section that only appears lower in the full anchor).
+- **STATUS: ✅ done** in 1.3.0; since then the check also runs once per turn instead of per call.
 
 ### T6 — `.claude/settings.json` hook install: merge instead of own (design-first)
 - **Problem:** `bin/lodestar:342` `write_managed_hook_file` writes the **entire** settings.json and
@@ -88,6 +93,11 @@ Branch: `codex/lodestar-v1-2`. Work top-to-bottom. Each task is self-contained.
   tradeoff in `CHANGELOG.md`.
 - **Acceptance:** whatever approach is chosen, add a test for it; if staying with ownership,
   the test asserts the `die` message tells the user exactly how to merge.
+- **STATUS: ✅ resolved without a JSON merge.** Fresh Claude installs write the personal
+  `.claude/settings.local.json` (git-ignored), so an existing shared `settings.json` is never touched;
+  existing Lodestar entries are reused; both files present → refuse with the merge hint and the
+  plugin alternative. Tests: `test_hooks_use_local_settings_when_shared_settings_exist`,
+  `test_init_refuses_hooks_before_writing_state`.
 
 ### T7 — Cosmetic cleanups
 - Pointer separator: `wire_pointer` (`bin/lodestar:106`) adds only one `\n` before the block, so a
@@ -98,6 +108,8 @@ Branch: `codex/lodestar-v1-2`. Work top-to-bottom. Each task is self-contained.
   duplicate append.
 - **Acceptance:** extend an existing init test to cover a pre-existing no-trailing-newline
   CLAUDE.md and a `.gitignore` that already contains `.lodestar` (no slash).
+- **STATUS: ✅ done.** Tests: `test_pointer_gets_a_blank_line_separator`,
+  `test_hooks_use_local_settings_when_shared_settings_exist` (`.lodestar` without slash).
 
 ---
 

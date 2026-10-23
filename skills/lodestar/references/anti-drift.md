@@ -46,6 +46,13 @@ Before any non-trivial action, ask: **does this still serve the active Goal?**
 | **Drift** | no clear link to Done-when or boundaries | stop and surface it |
 | **Likely goal change** | repeated/strong evidence that the Anchor no longer matches the real priority | propose a re-anchor and ask for confirmation |
 
+### Ideas Are Not Drift
+
+Talking about a new idea is not drift; working on it without a decision is. In `explore` mode, or
+whenever a planning workspace exists, capture the idea as one line (an `IDEA-` entry, else an open
+question in `.lodestar/state.md`) and return to the conversation. Surface drift when the *work*
+moves off the Goal, not when the user thinks out loud.
+
 ### Drift Signals
 
 - The last several turns never reference Done-when.
@@ -91,6 +98,9 @@ Example:
 
 The failure mode Lodestar exists to prevent is not only the silent slide away from the Anchor; it is
 also silent obedience to a stale Anchor when the real goal has moved.
+
+Drift and soundness are different checks. A request can serve the Goal and still violate a
+first-principles constraint; that is a challenge (`references/challenge.md`), not a re-anchor.
 
 ## Return Stack
 

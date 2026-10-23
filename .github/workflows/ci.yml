@@ -23,6 +23,7 @@ jobs:
           bash -n bin/lodestar
           bash -n hooks/lib.sh
           bash -n hooks/session-start
+          bash -n hooks/user-prompt-submit
           bash -n hooks/pre-tool-use
           bash -n hooks/post-tool-use
           bash -n hooks/pre-compact
@@ -32,7 +33,8 @@ jobs:
           bash -n hooks/run-hook.cmd
           bash -n tests/lodestar_cli_test.sh
           bash -n evals/run.sh
-          for script in evals/tasks/release-alignment-gauntlet/*.sh; do
+          bash -n skills/lodestar/scripts/lodestar-plan
+          for script in evals/tasks/release-alignment-gauntlet/*.sh evals/tasks/planning-conversation/*.sh; do
             bash -n "$script"
           done
 
