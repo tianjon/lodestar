@@ -172,22 +172,28 @@ render_into() {
   render_into_stdout "$src" "$@" > "$dest"
 }
 
+REPLACED=""
+
+replace_all() {
+  # replace_all <text> <token> <value>: sets REPLACED. Literal for any characters: never use
+  # ${var//pat/rep} for this, because bash 5.2's default patsub_replacement expands & in rep.
+  local text="$1" token="$2" value="$3" out=""
+  while [[ "$text" == *"$token"* ]]; do
+    out="$out${text%%"$token"*}$value"
+    text="${text#*"$token"}"
+  done
+  REPLACED="$out$text"
+}
+
 render_into_stdout() {
-  # Literal replacement; safe for any characters in values (no sed, no bash 5.2 & expansion).
-  local src="$1" text token value out
+  local src="$1" text
   shift
   text="$(cat "$src"; printf x)"
   text="${text%x}"
   while [ "$#" -ge 2 ]; do
-    token="$1"
-    value="$2"
+    replace_all "$text" "$1" "$2"
+    text="$REPLACED"
     shift 2
-    out=""
-    while [[ "$text" == *"$token"* ]]; do
-      out="$out${text%%"$token"*}$value"
-      text="${text#*"$token"}"
-    done
-    text="$out$text"
   done
   printf '%s' "$text"
 }
@@ -453,7 +459,7 @@ cmd_locate() {
 }
 
 cmd_init() {
-  local profile="$PROFILE_ARG" root rel dest subject project today src rel_file target existing
+  local profile="$PROFILE_ARG" root rel dest subject project today src rel_file target existing current
   case "$profile" in software|writing) ;; *) die "init: --profile must be software or writing" ;; esac
   if [ -n "$ROOT_ARG" ]; then
     mkdir -p "$ROOT_ARG"
@@ -461,7 +467,18 @@ cmd_init() {
   else
     root="$(pwd -P)"
   fi
-  rel="${PLAN_ARG:-plan}"
+  if [ -n "$PLAN_ARG" ]; then
+    rel="$PLAN_ARG"
+  elif existing="$(locate_plan "$root")"; then
+    # Re-running init reuses the project's workspace instead of starting a second one in plan/.
+    case "$existing" in
+      "$root") rel="." ;;
+      "$root"/*) rel="${existing#"$root"/}" ;;
+      *) die "init: the configured workspace $existing is outside $root; pass --plan-dir" ;;
+    esac
+  else
+    rel="plan"
+  fi
   rel="${rel%/}"
   [ -n "$rel" ] || rel="."
   case "$rel" in
@@ -494,13 +511,18 @@ cmd_init() {
     echo "  ✓ created $rel_file"
   done < <(cd "$src" && find . -type f -name '*.md' | sed 's#^\./##' | LC_ALL=C sort)
 
-  if [ "$rel" != plan ] && [ "$rel" != . ]; then
-    if [ -d "$root/.lodestar" ]; then
+  # Keep discovery pointing at the workspace this init used.
+  if [ -d "$root/.lodestar" ]; then
+    current=""
+    if [ -f "$root/.lodestar/config" ]; then
+      current="$(sed -n '/^plan-dir:/{s/^plan-dir:[[:space:]]*//p;q;}' "$root/.lodestar/config")"
+    fi
+    if [ "$current" != "$rel" ] && { [ -n "$current" ] || { [ "$rel" != plan ] && [ "$rel" != . ]; }; }; then
       set_config "$root/.lodestar/config" plan-dir "$rel"
       echo "  ✓ recorded plan-dir: $rel in .lodestar/config"
-    else
-      echo "  · note: hooks find non-default workspaces through .lodestar/config or LODESTAR_PLAN_DIR"
     fi
+  elif [ "$rel" != plan ] && [ "$rel" != . ]; then
+    echo "  · note: hooks find non-default workspaces through .lodestar/config or LODESTAR_PLAN_DIR"
   fi
   if [ "$rel" = . ]; then
     ensure_gitignore_entry "$root" "dashboard.html"
@@ -673,11 +695,10 @@ anchor_records() {
 }
 
 html_text() {
-  local s="$1"
-  s="${s//&/&amp;}"
-  s="${s//</&lt;}"
-  s="${s//>/&gt;}"
-  printf '%s' "$s"
+  replace_all "$1" '&' '&amp;'
+  replace_all "$REPLACED" '<' '&lt;'
+  replace_all "$REPLACED" '>' '&gt;'
+  printf '%s' "$REPLACED"
 }
 
 cmd_dashboard() {
@@ -842,7 +863,7 @@ cmd_doctor() {
     if [ -f "$state_dir/state.md" ]; then
       n="$(LC_ALL=C awk '
         /^#/ { gaps = ($0 ~ /[Gg]ap|差距|开放问题/); next }
-        gaps && /^[ \t]*[-*][ \t]/ && $0 !~ /^[ \t]*[-*][ \t]+</ && tolower($0) !~ /evidence/ { n++ }
+        gaps && /^[ \t]*[-*][ \t]/ && $0 !~ /^[ \t]*[-*][ \t]+</ && tolower($0) !~ /evidence|证据/ { n++ }
         END { print n + 0 }' "$state_dir/state.md")"
       if [ "$n" -gt 0 ]; then
         doctor_line WARN ".lodestar/state.md has $n open gap/question line(s) without evidence (cite a source or write evidence: missing)"

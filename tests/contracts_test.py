@@ -263,6 +263,10 @@ class Contracts(unittest.TestCase):
 
         project = self.plan_project()
         self.fill_anchor(project, goal="SECRET_GOAL <b>")
+        plan_md = project / "plan/PLAN.md"
+        lines = plan_md.read_text(encoding="utf-8").splitlines(keepends=True)
+        lines = ["# A & <tag> 规划\n" if line.startswith("# ") else line for line in lines]
+        plan_md.write_text("".join(lines), encoding="utf-8")
         tool = ROOT / "bin/lodestar"
         run(tool, "add", "ms", "MVP", "status=active", "--root", project)
         run(tool, "add", "idea", "<script>alert(1)</script>", "--root", project)
@@ -283,6 +287,9 @@ class Contracts(unittest.TestCase):
         self.assertNotIn("<script>alert", page)
         self.assertIn("&lt;script&gt;alert(1)&lt;/script&gt;", page)
         self.assertIn("SECRET_GOAL &lt;b&gt;", page)
+        # Shell-side escaping must not depend on bash 5.2's patsub_replacement default.
+        self.assertIn("<title>A &amp; &lt;tag&gt; 规划 · 规划看板</title>", page)
+        self.assertIn("<h1>A &amp; &lt;tag&gt; 规划</h1>", page)
         for text in ("IDEA-001", "AGENT_NOTE", "OPEN_Q?", "用户坚持", "外部用户前", "REQ-001", "1 / 1", 'href="ideas.md"',
                      "prefers-color-scheme: dark", 'data-theme="dark"'):
             self.assertIn(text, page)
@@ -334,6 +341,17 @@ class Contracts(unittest.TestCase):
         a_prompt = (out / "A/seed-1/transcripts/03.prompt.txt").read_text(encoding="utf-8")
         self.assertNotIn("LODESTAR", a_prompt)
         self.assertIn("API key", a_prompt)
+
+    def test_doctor_accepts_chinese_evidence_markers(self):
+        project = self.init()
+        self.fill_anchor(project)
+        (project / ".lodestar/state.md").write_text(
+            "# State\n\n### 开放问题 / 差距 Open Questions / Gaps\n\n"
+            "- GAP-20261023-1: [要求: 导出 | 现实/实践: 未实现 | 证据: src/export.rs | 下一步: 写规格]\n"
+            "- 评分口径未定 — evidence: missing\n"
+            "- 没有依据的一条\n", encoding="utf-8")
+        out = run(ROOT / "bin/lodestar", "doctor", "--root", project, check=False).stdout
+        self.assertIn("has 1 open gap/question line(s) without evidence", out)
 
     def test_stop_feedback_requests_only_one_continuation(self):
         project = self.init()

@@ -171,6 +171,17 @@ test_writing_profile_in_custom_directory() {
   summary="$("$ROOT/bin/lodestar" summary --root "$dir")"
   grep -Fq "profile writing" <<<"$summary" || fail "summary missing profile: $summary"
   grep -Fq "Specs: 1 draft" <<<"$summary" || fail "summary missing the new piece: $summary"
+
+  # Re-running init without --plan-dir reuses the configured workspace.
+  "$ROOT/bin/lodestar" init "$dir" --plan writing >/dev/null
+  assert_path_absent "$dir/plan"
+  assert_file_contains "$dir/.lodestar/config" "plan-dir: notes/plan"
+  # An explicit new directory moves discovery with it.
+  "$ROOT/bin/lodestar" init "$dir" --plan writing --plan-dir drafts >/dev/null
+  [ "$(grep -c '^plan-dir:' "$dir/.lodestar/config")" = 1 ] || fail "duplicate plan-dir entries: $(cat "$dir/.lodestar/config")"
+  assert_file_contains "$dir/.lodestar/config" "plan-dir: drafts"
+  located="$("$ROOT/bin/lodestar" locate --root "$dir")"
+  [ "$located" = "$(cd "$dir/drafts" && pwd -P)" ] || fail "locate did not follow the new workspace: $located"
 }
 
 test_init_plan_refuses_foreign_plan_md_before_writing() {
